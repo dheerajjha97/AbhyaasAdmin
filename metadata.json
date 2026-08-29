@@ -1,0 +1,6 @@
+{
+  "name": "Abhyaas Admin",
+  "description": "Mobile-first exam preparation admin panel for question papers, AI answer generation, syllabus, notes, and publishing.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
