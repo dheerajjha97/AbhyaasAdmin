@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { fetchRepoStats } from '../../utils/githubService';
 import {
   Sparkles,
   FileText,
@@ -88,18 +89,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     setIsLoadingStats(true);
     setStatsError(null);
     try {
-      const res = await fetch('/api/github/fetch-repo-stats', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          token: githubToken,
-          owner: repoOwner,
-          repo: repoName,
-        }),
-      });
-
-      const data = await res.json();
-      if (data.success) {
+      const data = await fetchRepoStats(githubToken, repoOwner, repoName);
+      if (data.success && data.stats && data.files) {
         setGithubStats({
           papersCount: data.stats.papersCount,
           syllabusCount: data.stats.syllabusCount,
@@ -107,7 +98,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           otherJsonCount: data.stats.otherJsonCount,
           totalFilesCount: data.stats.totalFilesCount,
           files: data.files,
-          branch: data.branch,
+          branch: data.branch || 'main',
           lastFetched: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
         });
       } else {

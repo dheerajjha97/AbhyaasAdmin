@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { pushFileToGitHub } from '../utils/githubService';
 import {
   NavTab,
   ClassItem,
@@ -637,20 +638,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     branch?: string;
   }): Promise<any> => {
     try {
-      const res = await fetch('/api/publish/github-json', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(params),
+      const contentString = typeof params.jsonContent === 'string'
+        ? params.jsonContent
+        : JSON.stringify(params.jsonContent, null, 2);
+
+      const data = await pushFileToGitHub({
+        path: params.filename,
+        content: contentString,
+        commitMessage: params.commitMessage,
+        branch: params.branch || 'main',
       });
 
-      const data = await res.json();
       if (!data.success) {
         throw new Error(data.error || 'Failed to push JSON to GitHub');
       }
 
-      // If it's a question paper, automatically add/update it in the papers list
-      if (data.parsedData) {
-        const parsed = data.parsedData;
+      // Try to parse json content for paper auto-add
+      let parsed: any = null;
+      try {
+        parsed = typeof params.jsonContent === 'string' ? JSON.parse(params.jsonContent) : params.jsonContent;
+      } catch (e) {
+        // ignore parse error
+      }
+      if (parsed) {
         if (parsed.questions || parsed.paper || (parsed.title && Array.isArray(parsed.questions))) {
           const paperObj = parsed.paper || parsed;
           const questionsList = (paperObj.questions || []).map((q: any, i: number) => ({
@@ -676,7 +686,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             id: paperObj.id || `paper-gh-${Date.now()}`,
             classId: paperObj.classId || 'class-12',
             subjectId: paperObj.subjectId || 'sub-phy-12',
-            title: paperObj.title || data.filename,
+            title: paperObj.title || params.filename,
             year: paperObj.year || 2026,
             set: paperObj.set || 'Set A',
             setNumber: paperObj.setNumber || 'A',
@@ -686,7 +696,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             status: paperObj.status || 'published',
             version: paperObj.version || 1,
             questions: questionsList,
-            githubSourceFile: data.filename,
+            githubSourceFile: params.filename,
             isAvailableOnGithub: true,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
@@ -706,22 +716,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       // Add a release history item for this push
       const newRelease: PublishRelease = {
-        id: `rel-${data.commitSha}-${Date.now()}`,
+        id: `rel-${data.commitSha || 'latest'}-${Date.now()}`,
         version: releases.length + 3,
-        timestamp: data.timestamp || new Date().toISOString(),
-        commitSha: data.commitSha,
-        message: data.message,
+        timestamp: new Date().toISOString(),
+        commitSha: data.commitSha || 'latest',
+        message: params.commitMessage,
         paperCount: papers.length + 1,
-        questionCount: papers.reduce((s, p) => s + p.questions.length, 0) + (data.itemCount || 0),
+        questionCount: papers.reduce((s, p) => s + p.questions.length, 0),
         notesCount: notes.length,
         status: 'success',
-        branch: data.branch || 'main',
+        branch: params.branch || 'main',
       };
       setReleases((prev) => [newRelease, ...prev]);
 
       addActivity(
-        `JSON Pushed to GitHub (${data.commitSha})`,
-        `${data.filename} • ${data.itemCount} items committed to ${data.branch}`,
+        `JSON Pushed to GitHub (${data.commitSha || 'latest'})`,
+        `${params.filename} committed to ${params.branch || 'main'}`,
         'publish',
         'success'
       );

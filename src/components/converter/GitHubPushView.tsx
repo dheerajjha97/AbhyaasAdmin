@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { testConnection } from '../../utils/githubService';
 import {
   UploadCloud,
   CheckCircle2,
@@ -139,40 +140,30 @@ export const GitHubPushView: React.FC<GitHubPushViewProps> = ({
     setConnectionStatus(null);
     setCreateRepoResult(null);
     try {
-      const res = await fetch('/api/github/test-connection', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          token: githubToken.trim(),
-          owner: repoOwner.trim(),
-          repo: repoName.trim(),
-        }),
-      });
-      const data = await res.json();
+      const data = await testConnection(githubToken.trim(), repoOwner.trim(), repoName.trim());
       if (data.success) {
         setConnectionStatus({
           tested: true,
           success: true,
-          user: data.user,
+          user: data.user?.login || 'User',
         });
-        if (data.user && !repoOwner) {
-          setRepoOwner(data.user);
+        if (data.user?.login && !repoOwner) {
+          setRepoOwner(data.user.login);
         }
-        if (data.repo?.defaultBranch) {
-          setBranch(data.repo.defaultBranch);
+        if (data.repoStatus?.defaultBranch) {
+          setBranch(data.repoStatus.defaultBranch);
         }
       } else {
-        const is404 = data.code === 'REPO_NOT_FOUND_OR_FORBIDDEN' || data.error?.includes('not accessible') || data.error?.includes('Not Found');
+        const is404 = data.error?.includes('not found') || data.error?.includes('Not Found');
         setConnectionStatus({
           tested: true,
           success: false,
-          user: data.user,
+          user: data.user?.login,
           error: data.error || 'Authentication failed',
           isNotFound: is404,
-          diagnostics: data.diagnostics,
         });
-        if (data.user && (!repoOwner || repoOwner === 'abhyaas-app')) {
-          setRepoOwner(data.user);
+        if (data.user?.login && (!repoOwner || repoOwner === 'abhyaas-app')) {
+          setRepoOwner(data.user.login);
         }
       }
     } catch (e: any) {

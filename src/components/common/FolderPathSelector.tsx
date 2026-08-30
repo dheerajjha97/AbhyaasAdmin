@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { fetchRepoStats } from '../../utils/githubService';
 import {
   Folder,
   FolderPlus,
@@ -115,17 +116,7 @@ export const FolderPathSelector: React.FC<FolderPathSelectorProps> = ({
     if (!repoOwner || !repoName) return;
     setIsLoadingFolders(true);
     try {
-      const res = await fetch('/api/github/fetch-repo-stats', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          token: githubToken,
-          owner: repoOwner,
-          repo: repoName,
-          branch,
-        }),
-      });
-      const data = await res.json();
+      const data = await fetchRepoStats(githubToken, repoOwner, repoName, branch);
       if (data.success && Array.isArray(data.folders)) {
         setRepoFolders(data.folders);
       }

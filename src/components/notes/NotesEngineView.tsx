@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { pushFileToGitHub } from '../../utils/githubService';
 import {
   FileText,
   FileCode2,
@@ -137,21 +138,16 @@ export const NotesEngineView: React.FC<NotesEngineViewProps> = ({
     if (!parsedNotes) throw new Error('No parsed notes to push');
 
     const jsonContent = JSON.stringify(parsedNotes, null, 2);
-    const res = await fetch('/api/github/push-syllabus', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        token: githubToken,
-        owner: repoOwner,
-        repo: repoName,
-        branch: branch || 'main',
-        path: targetFilename,
-        content: jsonContent,
-        commitMessage: commitMessage || `Update ${targetFilename}`,
-      }),
+    const data = await pushFileToGitHub({
+      token: githubToken,
+      owner: repoOwner,
+      repo: repoName,
+      branch: branch || 'main',
+      path: targetFilename,
+      content: jsonContent,
+      commitMessage: commitMessage || `Update ${targetFilename}`,
     });
 
-    const data = await res.json();
     if (data.success) {
       const newEntry = {
         id: `push-${Date.now()}`,

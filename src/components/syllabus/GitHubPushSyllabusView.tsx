@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { testConnection } from '../../utils/githubService';
 import {
   UploadCloud,
   Github,
@@ -110,20 +111,11 @@ export const GitHubPushSyllabusView: React.FC<GitHubPushSyllabusViewProps> = ({
     setTestResult(null);
 
     try {
-      const res = await fetch('/api/github/test-connection', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          token: githubToken,
-          owner: repoOwner,
-          repo: repoName,
-        }),
-      });
-      const data = await res.json();
+      const data = await testConnection(githubToken, repoOwner, repoName);
       if (data.success) {
         setTestResult({
           success: true,
-          message: `Connected successfully! Authenticated as @${data.user?.login || 'User'}. Repository ${data.repoStatus?.repoName || repoName} is ready.`,
+          message: data.message || `Connected successfully! Authenticated as @${data.user?.login || 'User'}.`,
           user: data.user?.login,
         });
         if (data.user?.login && !repoOwner) {
