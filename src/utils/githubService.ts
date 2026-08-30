@@ -42,14 +42,14 @@ export interface ConnectionTestResult {
   error?: string;
 }
 
-// Helper to safely parse JSON response
+// Helper to safely parse JSON response without throwing SyntaxError on HTML responses
 async function safeParseJson(res: Response): Promise<{ isJson: boolean; data: any }> {
-  const contentType = res.headers.get('content-type') || '';
-  if (!contentType.includes('application/json')) {
-    return { isJson: false, data: null };
-  }
   try {
-    const data = await res.json();
+    const text = await res.text();
+    if (!text || text.trim().startsWith('<') || text.trim().startsWith('The page') || text.trim().startsWith('<!DOCTYPE')) {
+      return { isJson: false, data: null };
+    }
+    const data = JSON.parse(text);
     return { isJson: true, data };
   } catch {
     return { isJson: false, data: null };
@@ -73,7 +73,7 @@ export async function fetchRepoStats(
     return { success: false, error: 'Repository owner and name are required.' };
   }
 
-  // 1. Try backend API endpoint first
+  // 1. Try backend API endpoint first (if running on Node server)
   try {
     const res = await fetch('/api/github/fetch-repo-stats', {
       method: 'POST',
@@ -81,9 +81,11 @@ export async function fetchRepoStats(
       body: JSON.stringify({ token: effectiveToken, owner: effectiveOwner, repo: effectiveRepo, branch }),
     });
 
-    const { isJson, data } = await safeParseJson(res);
-    if (isJson && data) {
-      return data;
+    if (res.ok) {
+      const { isJson, data } = await safeParseJson(res);
+      if (isJson && data && data.success !== undefined) {
+        return data;
+      }
     }
   } catch (e) {
     console.warn('Backend /api/github/fetch-repo-stats unavailable, falling back to direct GitHub API:', e);
@@ -224,9 +226,11 @@ export async function testConnection(
       body: JSON.stringify({ token: effectiveToken, owner: effectiveOwner, repo: effectiveRepo }),
     });
 
-    const { isJson, data } = await safeParseJson(res);
-    if (isJson && data) {
-      return data;
+    if (res.ok) {
+      const { isJson, data } = await safeParseJson(res);
+      if (isJson && data && data.success !== undefined) {
+        return data;
+      }
     }
   } catch (e) {
     console.warn('Backend /api/github/test-connection unavailable, falling back to direct GitHub API:', e);
@@ -324,9 +328,11 @@ export async function pushFileToGitHub(params: {
       }),
     });
 
-    const { isJson, data } = await safeParseJson(res);
-    if (isJson && data) {
-      return data;
+    if (res.ok) {
+      const { isJson, data } = await safeParseJson(res);
+      if (isJson && data && data.success !== undefined) {
+        return data;
+      }
     }
   } catch (e) {
     console.warn('Backend publish route unavailable, attempting direct GitHub upload:', e);
