@@ -199,24 +199,59 @@ export function parseSyllabusContent(
   const units: ParsedSyllabusUnit[] = [];
   const allChapters: ParsedSyllabusChapter[] = [];
 
+  // Auto-detect subject/class/title from header if present in pasted text
+  let detectedSubjectName = meta.subjectName;
+  let detectedSubjectId = meta.subjectId;
+  let detectedClassName = meta.className;
+  let detectedClassId = meta.classId;
+
+  // Scan first 10 lines for header subject/class overrides
+  for (let i = 0; i < Math.min(lines.length, 10); i++) {
+    const lUpper = lines[i].toUpperCase();
+    if (lUpper.includes('POLITICAL SCIENCE')) {
+      detectedSubjectName = 'Political Science (राजनीतिशास्त्र)';
+      detectedSubjectId = 'political_science';
+    } else if (lUpper.includes('HISTORY')) {
+      detectedSubjectName = 'History (इतिहास)';
+      detectedSubjectId = 'history';
+    } else if (lUpper.includes('GEOGRAPHY')) {
+      detectedSubjectName = 'Geography (भूगोल)';
+      detectedSubjectId = 'geography';
+    } else if (lUpper.includes('ECONOMICS')) {
+      detectedSubjectName = 'Economics (अर्थशास्त्र)';
+      detectedSubjectId = 'economics';
+    } else if (lUpper.includes('SOCIOLOGY')) {
+      detectedSubjectName = 'Sociology (समाजशास्त्र)';
+      detectedSubjectId = 'sociology';
+    }
+
+    if (lUpper.includes('CLASS-XII') || lUpper.includes('CLASS 12') || lUpper.includes('CLASS XII')) {
+      detectedClassName = 'Class 12';
+      detectedClassId = '12';
+    } else if (lUpper.includes('CLASS-XI') || lUpper.includes('CLASS 11') || lUpper.includes('CLASS XI')) {
+      detectedClassName = 'Class 11';
+      detectedClassId = '11';
+    }
+  }
+
   let currentUnit: ParsedSyllabusUnit | null = null;
   let currentChapter: ParsedSyllabusChapter | null = null;
   let unitCounter = 0;
   let chapterCounter = 0;
-  let topicCounter = 0;
 
   for (let i = 0; i < lines.length; i++) {
     const rawLine = lines[i];
     const trimmed = rawLine.trim();
-    if (!trimmed || trimmed.startsWith('#')) {
-      // Check if line contains title/header
+
+    // Skip empty lines, comment lines, and decorative lines like "==================="
+    if (!trimmed || trimmed.startsWith('#') || /^[=\-*#]{3,}$/.test(trimmed)) {
       continue;
     }
 
     // 1. Detect Unit Header
-    // Examples: "UNIT VI: REPRODUCTION [14 Marks]", "UNIT 1: ELECTROSTATICS", "इकाई 1: स्थिर वैद्युतिकी"
+    // Examples: "UNIT VI: REPRODUCTION [14 Marks]", "UNIT I: CONSTITUTIONAL FRAMEWORK & PHILOSOPHY", "UNIT 1: ELECTROSTATICS", "इकाई 1: स्थिर वैद्युतिकी"
     const unitMatch = trimmed.match(
-      /^(?:UNIT|इकाई)\s*([IVXLCDM\d]+)[:.\-–\s]+([^[(\n]+)(?:\[(\d+)\s*(?:Marks|अंक)?\])?/i
+      /^(?:UNIT|इकाई)\s*([IVXLCDM\d]+)[:.\-–\s]+(.+?)(?:\s*\[(\d+)\s*(?:Marks|अंक)?\])?$/i
     );
 
     if (unitMatch) {
@@ -224,7 +259,6 @@ export function parseSyllabusContent(
       const unitNumStr = unitMatch[1];
       let unitNum = parseInt(unitNumStr, 10);
       if (isNaN(unitNum)) {
-        // Roman numeral to number converter
         unitNum = romanToNumber(unitNumStr) || unitCounter;
       }
 
@@ -241,28 +275,36 @@ export function parseSyllabusContent(
         chapters: [],
       };
       units.push(currentUnit);
+      currentChapter = null; // reset current chapter on new unit
       continue;
     }
 
     // 2. Detect Chapter Header
-    // Examples: "Chapter 1: Reproduction in Organisms (जीवों में जनन) [4 Marks]", "अध्याय 1: ...", "1. Reproduction..."
-    const chapterMatch = trimmed.match(
-      /^(?:Chapter|अध्याय|Chap|Ch\.)?\s*(\d+)[:.\-–\s]+([^[(\n]+(?:\([^)]+\))?)(?:\[(\d+)\s*(?:Marks|अंक|Periods)?\])?/i
+    // Examples:
+    // - "Chapter 1: Making of Indian Constitution and its Goals"
+    // - "Chapter 9: State Legislature (with Special Reference to Bihar)"
+    // - "अध्याय 1: ..."
+    // - "1. Making of Indian Constitution"
+    const explicitChapMatch = trimmed.match(
+      /^(?:Chapter|अध्याय|Chap|Ch\.?)\s*[-–:]?\s*(\d+)[:.\-–\s]+(.+?)(?:\s*\[(\d+)\s*(?:Marks|अंक|Periods)?\])?$/i
     );
 
-    const isExplicitChapter =
-      /^(?:Chapter|अध्याय|Chap|Ch\.)/i.test(trimmed) ||
-      (/^\d+\.\s+[A-Z\u0900-\u097F]/.test(trimmed) && !trimmed.startsWith('-') && !trimmed.startsWith('•'));
+    const isSubTopicLine = /^\d+\.\d+/.test(trimmed);
+    const numChapMatch = !isSubTopicLine && trimmed.match(
+      /^(\d+)[:.\-–\s]+([A-Z\u0900-\u097F].+?)(?:\s*\[(\d+)\s*(?:Marks|अंक|Periods)?\])?$/i
+    );
 
-    if (chapterMatch && (isExplicitChapter || !currentChapter)) {
+    const activeChapMatch = explicitChapMatch || numChapMatch;
+
+    if (activeChapMatch && !trimmed.startsWith('-') && !trimmed.startsWith('•') && !trimmed.startsWith('*')) {
       chapterCounter++;
-      const chapNum = parseInt(chapterMatch[1], 10) || chapterCounter;
-      const chapTitleRaw = chapterMatch[2].trim();
-      const marks = chapterMatch[3] ? parseInt(chapterMatch[3], 10) : undefined;
+      const chapNum = parseInt(activeChapMatch[1], 10) || chapterCounter;
+      const chapTitleRaw = activeChapMatch[2].trim();
+      const marks = activeChapMatch[3] ? parseInt(activeChapMatch[3], 10) : undefined;
       const { english, hindi } = splitBilingual(chapTitleRaw);
 
       currentChapter = {
-        id: `chap-${meta.subjectId}-${chapNum}`,
+        id: `chap-${detectedSubjectId}-${chapNum}`,
         chapterNumber: chapNum,
         unitNumber: currentUnit?.unitNumber,
         unitTitle: currentUnit?.title,
@@ -273,15 +315,16 @@ export function parseSyllabusContent(
       };
 
       allChapters.push(currentChapter);
+
       if (currentUnit) {
         currentUnit.chapters.push(currentChapter);
       } else {
-        // Create an implicit default unit if none was declared
+        // Create implicit default unit if none declared yet
         if (units.length === 0) {
           currentUnit = {
             id: 'unit-1',
             unitNumber: 1,
-            title: `${meta.subjectName} Core Units`,
+            title: `${detectedSubjectName} Core Units`,
             chapters: [currentChapter],
           };
           units.push(currentUnit);
@@ -293,13 +336,21 @@ export function parseSyllabusContent(
     }
 
     // 3. Detect Topic / Subtopic line
-    // Examples: "- Asexual reproduction: Binary fission...", "• Pollination: Types...", "1.1 Electric Charges"
-    if (trimmed.startsWith('-') || trimmed.startsWith('•') || trimmed.startsWith('*') || /^\d+\.\d+/.test(trimmed)) {
+    // Examples: "- 1.1 Constitutional Development", "- Asexual reproduction...", "* Lok Adalats", "1.1 Electric Charges"
+    const isTopicStarter =
+      trimmed.startsWith('-') ||
+      trimmed.startsWith('•') ||
+      trimmed.startsWith('*') ||
+      trimmed.startsWith('+') ||
+      isSubTopicLine ||
+      /^[a-z]\)/i.test(trimmed) ||
+      /^\([a-z0-9]+\)/i.test(trimmed);
+
+    if (isTopicStarter || (currentChapter && trimmed.length > 2 && !trimmed.toUpperCase().startsWith('UNIT'))) {
       if (!currentChapter) {
-        // Create initial chapter if topics listed before chapter header
         chapterCounter++;
         currentChapter = {
-          id: `chap-${meta.subjectId}-${chapterCounter}`,
+          id: `chap-${detectedSubjectId}-${chapterCounter}`,
           chapterNumber: chapterCounter,
           title: `Chapter ${chapterCounter}`,
           topics: [],
@@ -318,8 +369,15 @@ export function parseSyllabusContent(
         }
       }
 
-      topicCounter++;
-      const cleanTopic = trimmed.replace(/^[-•*]\s*/, '').replace(/^\d+\.\d+\s*/, '').trim();
+      const cleanTopic = trimmed
+        .replace(/^[-•*+]\s*/, '')
+        .replace(/^\d+\.\d+\s*/, '')
+        .replace(/^[a-z]\)\s*/i, '')
+        .replace(/^\([a-z0-9]+\)\s*/i, '')
+        .trim();
+
+      if (!cleanTopic) continue;
+
       const { english, hindi } = splitBilingual(cleanTopic);
 
       // Check sub-topics if delimited by semicolons or colons
@@ -361,15 +419,15 @@ export function parseSyllabusContent(
     }
   });
 
-  const finalTotalMarks = meta.totalMarks || (calculatedMarks > 0 ? calculatedMarks : 70);
+  const finalTotalMarks = meta.totalMarks || (calculatedMarks > 0 ? calculatedMarks : 100);
 
   return {
-    syllabusId: `syllabus-${meta.classId}-${meta.subjectId}-${meta.academicYear.replace(/[^0-9]/g, '')}`,
-    title: `${meta.className} ${meta.subjectName} Syllabus (${meta.academicYear})`,
-    classId: meta.classId,
-    className: meta.className,
-    subjectId: meta.subjectId,
-    subjectName: meta.subjectName,
+    syllabusId: `syllabus-${detectedClassId}-${detectedSubjectId}-${meta.academicYear.replace(/[^0-9]/g, '')}`,
+    title: `${detectedClassName} ${detectedSubjectName} Syllabus (${meta.academicYear})`,
+    classId: detectedClassId,
+    className: detectedClassName,
+    subjectId: detectedSubjectId,
+    subjectName: detectedSubjectName,
     board: meta.board,
     academicYear: meta.academicYear,
     totalMarks: finalTotalMarks,

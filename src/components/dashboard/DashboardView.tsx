@@ -28,7 +28,8 @@ import {
   ExternalLink,
   FileCode,
   Folder,
-  AlertCircle
+  AlertCircle,
+  Search
 } from 'lucide-react';
 import { ALL_SUBJECTS, getSubjectsGroupedByStream } from '../../data/subjects';
 
@@ -81,6 +82,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [isLoadingStats, setIsLoadingStats] = useState(false);
   const [statsError, setStatsError] = useState<string | null>(null);
   const [activeExplorerTab, setActiveExplorerTab] = useState<'papers' | 'syllabus' | 'notes'>('papers');
+  const [explorerSearchQuery, setExplorerSearchQuery] = useState('');
 
   const grouped = getSubjectsGroupedByStream();
 
@@ -337,46 +339,59 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         )}
 
-        {/* Directory Category Tabs */}
-        <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto no-scrollbar">
-          <button
-            onClick={() => setActiveExplorerTab('papers')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all ${
-              activeExplorerTab === 'papers'
-                ? 'bg-indigo-600 text-white font-black shadow-xs'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            <FileText className="w-3.5 h-3.5" />
-            <span>Question Papers ({githubStats?.papersCount || 0})</span>
-          </button>
+        {/* Directory Category Tabs & Search Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-2">
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+            <button
+              onClick={() => setActiveExplorerTab('papers')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all shrink-0 ${
+                activeExplorerTab === 'papers'
+                  ? 'bg-indigo-600 text-white font-black shadow-xs'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>Question Papers ({githubStats?.papersCount || 0})</span>
+            </button>
 
-          <button
-            onClick={() => setActiveExplorerTab('syllabus')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all ${
-              activeExplorerTab === 'syllabus'
-                ? 'bg-emerald-600 text-white font-black shadow-xs'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            <BookmarkCheck className="w-3.5 h-3.5" />
-            <span>Curriculum Syllabi ({githubStats?.syllabusCount || 0})</span>
-          </button>
+            <button
+              onClick={() => setActiveExplorerTab('syllabus')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all shrink-0 ${
+                activeExplorerTab === 'syllabus'
+                  ? 'bg-emerald-600 text-white font-black shadow-xs'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              <BookmarkCheck className="w-3.5 h-3.5" />
+              <span>Curriculum Syllabi ({githubStats?.syllabusCount || 0})</span>
+            </button>
 
-          <button
-            onClick={() => setActiveExplorerTab('notes')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all ${
-              activeExplorerTab === 'notes'
-                ? 'bg-amber-600 text-white font-black shadow-xs'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            <Zap className="w-3.5 h-3.5" />
-            <span>Revision Notes ({githubStats?.notesCount || 0})</span>
-          </button>
+            <button
+              onClick={() => setActiveExplorerTab('notes')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all shrink-0 ${
+                activeExplorerTab === 'notes'
+                  ? 'bg-amber-600 text-white font-black shadow-xs'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              <Zap className="w-3.5 h-3.5" />
+              <span>Revision Notes ({githubStats?.notesCount || 0})</span>
+            </button>
+          </div>
+
+          <div className="relative min-w-[180px]">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={explorerSearchQuery}
+              onChange={(e) => setExplorerSearchQuery(e.target.value)}
+              placeholder="Search files..."
+              className="w-full bg-slate-100/80 text-slate-800 text-xs pl-8 pr-3 py-1 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-400 focus:bg-white transition-all"
+            />
+          </div>
         </div>
 
-        {/* Files List Display */}
+        {/* Files List Display - Compact Scrollable Viewport */}
         <div className="space-y-2">
           {isLoadingStats ? (
             <div className="py-8 text-center space-y-2">
@@ -385,95 +400,116 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
           ) : (
             <div>
-              {activeExplorerTab === 'papers' && (
-                githubStats?.files?.papers && githubStats.files.papers.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                    {githubStats.files.papers.map((filePath) => (
-                      <div key={filePath} className="p-2.5 rounded-xl bg-white border border-slate-200 flex items-center justify-between text-xs hover:border-indigo-300 transition-all shadow-2xs">
-                        <div className="flex items-center gap-2 truncate">
-                          <FileCode className="w-4 h-4 text-indigo-600 shrink-0" />
-                          <span className="font-mono text-slate-800 truncate font-medium">{filePath}</span>
+              {activeExplorerTab === 'papers' && (() => {
+                const papersList = (githubStats?.files?.papers || []).filter(f =>
+                  f.toLowerCase().includes(explorerSearchQuery.toLowerCase().trim())
+                );
+                return papersList.length > 0 ? (
+                  <div className="max-h-56 sm:max-h-64 overflow-y-auto pr-1 space-y-1 custom-scrollbar">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                      {papersList.map((filePath) => (
+                        <div key={filePath} className="p-2.5 rounded-xl bg-white border border-slate-200 flex items-center justify-between text-xs hover:border-indigo-300 transition-all shadow-2xs">
+                          <div className="flex items-center gap-2 truncate">
+                            <FileCode className="w-4 h-4 text-indigo-600 shrink-0" />
+                            <span className="font-mono text-slate-800 truncate font-medium">{filePath}</span>
+                          </div>
+                          <a
+                            href={`https://github.com/${repoOwner}/${repoName}/blob/${githubStats?.branch || 'main'}/${filePath}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="p-1 rounded bg-slate-100 hover:bg-indigo-50 text-slate-500 hover:text-indigo-600 shrink-0 ml-1"
+                            title="View on GitHub"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
                         </div>
-                        <a
-                          href={`https://github.com/${repoOwner}/${repoName}/blob/${githubStats.branch || 'main'}/${filePath}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="p-1 rounded bg-slate-100 hover:bg-indigo-50 text-slate-500 hover:text-indigo-600 shrink-0 ml-1"
-                          title="View on GitHub"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" />
-                        </a>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 ) : (
                   <div className="py-6 text-center bg-slate-50/80 rounded-2xl border border-dashed border-slate-200">
                     <FileText className="w-6 h-6 text-slate-300 mx-auto mb-1" />
-                    <p className="text-xs font-bold text-slate-600">No question paper files found in repository tree.</p>
+                    <p className="text-xs font-bold text-slate-600">
+                      {explorerSearchQuery ? `No matching question paper files for "${explorerSearchQuery}"` : 'No question paper files found in repository tree.'}
+                    </p>
                     <p className="text-[11px] text-slate-400 mt-0.5">Use the "Q&A Converter" to paste and push papers to GitHub!</p>
                   </div>
-                )
-              )}
+                );
+              })()}
 
-              {activeExplorerTab === 'syllabus' && (
-                githubStats?.files?.syllabus && githubStats.files.syllabus.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                    {githubStats.files.syllabus.map((filePath) => (
-                      <div key={filePath} className="p-2.5 rounded-xl bg-white border border-slate-200 flex items-center justify-between text-xs hover:border-emerald-300 transition-all shadow-2xs">
-                        <div className="flex items-center gap-2 truncate">
-                          <FileCode className="w-4 h-4 text-emerald-600 shrink-0" />
-                          <span className="font-mono text-slate-800 truncate font-medium">{filePath}</span>
+              {activeExplorerTab === 'syllabus' && (() => {
+                const syllabusList = (githubStats?.files?.syllabus || []).filter(f =>
+                  f.toLowerCase().includes(explorerSearchQuery.toLowerCase().trim())
+                );
+                return syllabusList.length > 0 ? (
+                  <div className="max-h-56 sm:max-h-64 overflow-y-auto pr-1 space-y-1 custom-scrollbar">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                      {syllabusList.map((filePath) => (
+                        <div key={filePath} className="p-2.5 rounded-xl bg-white border border-slate-200 flex items-center justify-between text-xs hover:border-emerald-300 transition-all shadow-2xs">
+                          <div className="flex items-center gap-2 truncate">
+                            <FileCode className="w-4 h-4 text-emerald-600 shrink-0" />
+                            <span className="font-mono text-slate-800 truncate font-medium">{filePath}</span>
+                          </div>
+                          <a
+                            href={`https://github.com/${repoOwner}/${repoName}/blob/${githubStats?.branch || 'main'}/${filePath}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="p-1 rounded bg-slate-100 hover:bg-emerald-50 text-slate-500 hover:text-emerald-600 shrink-0 ml-1"
+                            title="View on GitHub"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
                         </div>
-                        <a
-                          href={`https://github.com/${repoOwner}/${repoName}/blob/${githubStats.branch || 'main'}/${filePath}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="p-1 rounded bg-slate-100 hover:bg-emerald-50 text-slate-500 hover:text-emerald-600 shrink-0 ml-1"
-                          title="View on GitHub"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" />
-                        </a>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 ) : (
                   <div className="py-6 text-center bg-slate-50/80 rounded-2xl border border-dashed border-slate-200">
                     <BookmarkCheck className="w-6 h-6 text-slate-300 mx-auto mb-1" />
-                    <p className="text-xs font-bold text-slate-600">No syllabus files found in repository tree.</p>
+                    <p className="text-xs font-bold text-slate-600">
+                      {explorerSearchQuery ? `No matching syllabus files for "${explorerSearchQuery}"` : 'No syllabus files found in repository tree.'}
+                    </p>
                     <p className="text-[11px] text-slate-400 mt-0.5">Use the "Syllabus Builder" to structure and push syllabi to GitHub!</p>
                   </div>
-                )
-              )}
+                );
+              })()}
 
-              {activeExplorerTab === 'notes' && (
-                githubStats?.files?.notes && githubStats.files.notes.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                    {githubStats.files.notes.map((filePath) => (
-                      <div key={filePath} className="p-2.5 rounded-xl bg-white border border-slate-200 flex items-center justify-between text-xs hover:border-amber-300 transition-all shadow-2xs">
-                        <div className="flex items-center gap-2 truncate">
-                          <FileCode className="w-4 h-4 text-amber-600 shrink-0" />
-                          <span className="font-mono text-slate-800 truncate font-medium">{filePath}</span>
+              {activeExplorerTab === 'notes' && (() => {
+                const notesList = (githubStats?.files?.notes || []).filter(f =>
+                  f.toLowerCase().includes(explorerSearchQuery.toLowerCase().trim())
+                );
+                return notesList.length > 0 ? (
+                  <div className="max-h-56 sm:max-h-64 overflow-y-auto pr-1 space-y-1 custom-scrollbar">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                      {notesList.map((filePath) => (
+                        <div key={filePath} className="p-2.5 rounded-xl bg-white border border-slate-200 flex items-center justify-between text-xs hover:border-amber-300 transition-all shadow-2xs">
+                          <div className="flex items-center gap-2 truncate">
+                            <FileCode className="w-4 h-4 text-amber-600 shrink-0" />
+                            <span className="font-mono text-slate-800 truncate font-medium">{filePath}</span>
+                          </div>
+                          <a
+                            href={`https://github.com/${repoOwner}/${repoName}/blob/${githubStats?.branch || 'main'}/${filePath}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="p-1 rounded bg-slate-100 hover:bg-amber-50 text-slate-500 hover:text-amber-600 shrink-0 ml-1"
+                            title="View on GitHub"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
                         </div>
-                        <a
-                          href={`https://github.com/${repoOwner}/${repoName}/blob/${githubStats.branch || 'main'}/${filePath}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="p-1 rounded bg-slate-100 hover:bg-amber-50 text-slate-500 hover:text-amber-600 shrink-0 ml-1"
-                          title="View on GitHub"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" />
-                        </a>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 ) : (
                   <div className="py-6 text-center bg-slate-50/80 rounded-2xl border border-dashed border-slate-200">
                     <Zap className="w-6 h-6 text-slate-300 mx-auto mb-1" />
-                    <p className="text-xs font-bold text-slate-600">No revision note files found in repository tree.</p>
+                    <p className="text-xs font-bold text-slate-600">
+                      {explorerSearchQuery ? `No matching note files for "${explorerSearchQuery}"` : 'No revision note files found in repository tree.'}
+                    </p>
                     <p className="text-[11px] text-slate-400 mt-0.5">Use the "Notes Engine" to structure and push notes to GitHub!</p>
                   </div>
-                )
-              )}
+                );
+              })()}
             </div>
           )}
         </div>
