@@ -9,17 +9,21 @@ import {
   RotateCcw,
   Layers,
   FileCheck,
-  FileText
+  FileText,
+  Github,
+  Clock
 } from 'lucide-react';
 import { QuestionPaper } from '../../types';
 
 export const JsonImportView: React.FC = () => {
-  const { importPaperFromJson, setActiveTab, goToQuestionEditor } = useApp();
+  const { importPaperFromJson, pushJsonToGitHub, setActiveTab, goToQuestionEditor } = useApp();
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1); // 1: Select File, 2: Validate, 3: Preview, 4: Success
   const [jsonText, setJsonText] = useState('');
   const [parsedData, setParsedData] = useState<QuestionPaper | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isPushingGithub, setIsPushingGithub] = useState(false);
+  const [githubSuccessData, setGithubSuccessData] = useState<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Sample JSON template generator for quick testing
@@ -98,6 +102,27 @@ export const JsonImportView: React.FC = () => {
       setStep(4);
     } else {
       setErrorMsg(res.message);
+    }
+  };
+
+  const handleExecutePushToGitHub = async () => {
+    if (!parsedData) return;
+    try {
+      setIsPushingGithub(true);
+      setErrorMsg(null);
+      const filename = `data/papers/${parsedData.id || 'paper'}.json`;
+      const res = await pushJsonToGitHub({
+        filename,
+        jsonContent: jsonText || JSON.stringify(parsedData, null, 2),
+        commitMessage: `feat: Add ${parsedData.title} question bank`,
+        branch: 'main'
+      });
+      setGithubSuccessData(res);
+      setStep(4);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to push to GitHub');
+    } finally {
+      setIsPushingGithub(false);
     }
   };
 
@@ -233,19 +258,40 @@ export const JsonImportView: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 pt-2">
+          <div className="space-y-2 pt-2">
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setStep(3)}
+                className="py-3 rounded-xl bg-slate-100 text-slate-800 border border-slate-200 text-xs font-bold hover:bg-slate-200"
+              >
+                Preview Questions
+              </button>
+              <button
+                id="import-to-db-btn"
+                onClick={handleExecuteImport}
+                className="py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-extrabold text-xs shadow-sm flex items-center justify-center gap-1"
+              >
+                <span>Import to Database</span> <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
             <button
-              onClick={() => setStep(3)}
-              className="py-3 rounded-xl bg-slate-100 text-slate-800 border border-slate-200 text-xs font-bold hover:bg-slate-200"
+              id="import-push-github-btn"
+              onClick={handleExecutePushToGitHub}
+              disabled={isPushingGithub}
+              className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-sm flex items-center justify-center gap-2"
             >
-              Preview Questions
-            </button>
-            <button
-              id="import-to-db-btn"
-              onClick={handleExecuteImport}
-              className="py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-extrabold text-xs shadow-sm flex items-center justify-center gap-1"
-            >
-              <span>Import to Database</span> <ArrowRight className="w-3.5 h-3.5" />
+              {isPushingGithub ? (
+                <>
+                  <Clock className="w-4 h-4 animate-spin" />
+                  <span>Pushing to GitHub...</span>
+                </>
+              ) : (
+                <>
+                  <Github className="w-4 h-4" />
+                  <span>Push Directly into GitHub Repository</span>
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -280,12 +326,22 @@ export const JsonImportView: React.FC = () => {
             ))}
           </div>
 
-          <button
-            onClick={handleExecuteImport}
-            className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-sm"
-          >
-            Confirm & Import to Database
-          </button>
+          <div className="space-y-2">
+            <button
+              onClick={handleExecuteImport}
+              className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-sm"
+            >
+              Confirm & Import to Local Database
+            </button>
+            <button
+              onClick={handleExecutePushToGitHub}
+              disabled={isPushingGithub}
+              className="w-full py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-sm flex items-center justify-center gap-2"
+            >
+              <Github className="w-4 h-4" />
+              <span>Confirm & Push into GitHub Repository</span>
+            </button>
+          </div>
         </div>
       )}
 
@@ -297,9 +353,13 @@ export const JsonImportView: React.FC = () => {
           </div>
 
           <div>
-            <h2 className="text-lg font-black text-slate-900">Import Completed Successfully!</h2>
+            <h2 className="text-lg font-black text-slate-900">
+              {githubSuccessData ? 'Pushed to GitHub Successfully!' : 'Import Completed Successfully!'}
+            </h2>
             <p className="text-xs text-slate-500 mt-1">
-              The question paper has been added to your local database and is ready for editing or AI generation.
+              {githubSuccessData
+                ? `Saved to ${githubSuccessData.filename} on ${githubSuccessData.branch} branch (Commit: ${githubSuccessData.commitSha}).`
+                : 'The question paper has been added to your local database and is ready for editing or AI generation.'}
             </p>
           </div>
 
@@ -309,6 +369,7 @@ export const JsonImportView: React.FC = () => {
                 setStep(1);
                 setJsonText('');
                 setParsedData(null);
+                setGithubSuccessData(null);
               }}
               className="py-3 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold border border-slate-200 hover:bg-slate-200"
             >

@@ -67,8 +67,22 @@ export interface QuestionPaper {
   status: PaperStatus;
   version?: number;
   questions: Question[];
+  githubSourceFile?: string;
+  isAvailableOnGithub?: boolean;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface DirectJsonPushResult {
+  success: boolean;
+  commitSha: string;
+  filename: string;
+  branch: string;
+  message: string;
+  timestamp: string;
+  itemCount: number;
+  contentType: 'paper' | 'syllabus' | 'notes';
+  paper?: QuestionPaper;
 }
 
 export interface ClassItem {

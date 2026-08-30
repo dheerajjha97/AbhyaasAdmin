@@ -74,6 +74,12 @@ interface AppContextType {
   cancelAIGeneration: () => void;
   regenerateSingleAnswer: (question: Question, customPrompt?: string) => Promise<string>;
   publishToGitHub: (version: number, message: string) => Promise<PublishRelease | null>;
+  pushJsonToGitHub: (params: {
+    filename: string;
+    jsonContent: string | object;
+    commitMessage: string;
+    branch?: string;
+  }) => Promise<any>;
   importJSONData: (importedData: any, contentType: string) => { success: boolean; message: string; count: number };
   resetToDefaultData: () => void;
 }
@@ -96,7 +102,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [papers, setPapers] = useState<QuestionPaper[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_PREFIX + 'papers');
-    return saved ? JSON.parse(saved) : INITIAL_PAPERS;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          // Filter to only available question banks (questions.length > 0)
+          const availableOnly = parsed.filter((p: QuestionPaper) => p.questions && p.questions.length > 0);
+          if (availableOnly.length > 0) return availableOnly;
+        }
+      } catch (e) {
+        console.error('Failed to parse cached papers:', e);
+      }
+    }
+    return INITIAL_PAPERS;
   });
 
   const [chapters, setChapters] = useState<Chapter[]>(() => {
@@ -612,6 +630,109 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const pushJsonToGitHub = async (params: {
+    filename: string;
+    jsonContent: string | object;
+    commitMessage: string;
+    branch?: string;
+  }): Promise<any> => {
+    try {
+      const res = await fetch('/api/publish/github-json', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params),
+      });
+
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to push JSON to GitHub');
+      }
+
+      // If it's a question paper, automatically add/update it in the papers list
+      if (data.parsedData) {
+        const parsed = data.parsedData;
+        if (parsed.questions || parsed.paper || (parsed.title && Array.isArray(parsed.questions))) {
+          const paperObj = parsed.paper || parsed;
+          const questionsList = (paperObj.questions || []).map((q: any, i: number) => ({
+            id: q.id || `q-gh-${Date.now()}-${i}`,
+            paperId: paperObj.id || `paper-gh-${Date.now()}`,
+            questionNumber: q.questionNumber || i + 1,
+            type: q.type || 'mcq',
+            text: q.text || `Question ${i + 1}`,
+            textHindi: q.textHindi || '',
+            options: q.options,
+            correctAnswer: q.correctAnswer || 'A',
+            explanation: q.explanation || '',
+            explanationHindi: q.explanationHindi || '',
+            aiAnswer: q.aiAnswer || '',
+            aiStatus: q.aiStatus || 'approved',
+            marks: q.marks || 1,
+            negativeMarks: q.negativeMarks || 0,
+            chapterId: q.chapterId,
+            difficulty: q.difficulty || 'medium',
+          }));
+
+          const newPaper: QuestionPaper = {
+            id: paperObj.id || `paper-gh-${Date.now()}`,
+            classId: paperObj.classId || 'class-12',
+            subjectId: paperObj.subjectId || 'sub-phy-12',
+            title: paperObj.title || data.filename,
+            year: paperObj.year || 2026,
+            set: paperObj.set || 'Set A',
+            setNumber: paperObj.setNumber || 'A',
+            durationMinutes: paperObj.durationMinutes || 195,
+            totalMarks: paperObj.totalMarks || 70,
+            totalQuestions: questionsList.length,
+            status: paperObj.status || 'published',
+            version: paperObj.version || 1,
+            questions: questionsList,
+            githubSourceFile: data.filename,
+            isAvailableOnGithub: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+
+          setPapers((prev) => [newPaper, ...prev.filter((p) => p.id !== newPaper.id)]);
+          setSelectedPaperId(newPaper.id);
+        } else if (parsed.chapters || Array.isArray(parsed)) {
+          const chapList = parsed.chapters || parsed;
+          if (Array.isArray(chapList)) {
+            setChapters(chapList);
+          }
+        } else if (parsed.notes) {
+          setNotes(parsed.notes);
+        }
+      }
+
+      // Add a release history item for this push
+      const newRelease: PublishRelease = {
+        id: `rel-${data.commitSha}-${Date.now()}`,
+        version: releases.length + 3,
+        timestamp: data.timestamp || new Date().toISOString(),
+        commitSha: data.commitSha,
+        message: data.message,
+        paperCount: papers.length + 1,
+        questionCount: papers.reduce((s, p) => s + p.questions.length, 0) + (data.itemCount || 0),
+        notesCount: notes.length,
+        status: 'success',
+        branch: data.branch || 'main',
+      };
+      setReleases((prev) => [newRelease, ...prev]);
+
+      addActivity(
+        `JSON Pushed to GitHub (${data.commitSha})`,
+        `${data.filename} • ${data.itemCount} items committed to ${data.branch}`,
+        'publish',
+        'success'
+      );
+
+      return data;
+    } catch (err: any) {
+      console.error('pushJsonToGitHub error:', err);
+      throw err;
+    }
+  };
+
   const importJSONData = (importedData: any, contentType: string): { success: boolean; message: string; count: number } => {
     try {
       if (contentType === 'paper' || importedData.questions || importedData.paper) {
@@ -749,6 +870,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         cancelAIGeneration,
         regenerateSingleAnswer,
         publishToGitHub,
+        pushJsonToGitHub,
         importJSONData,
         resetToDefaultData,
       }}
