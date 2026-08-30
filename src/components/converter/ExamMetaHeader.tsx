@@ -23,6 +23,8 @@ interface ExamMetaHeaderProps {
   setSet: (val: string) => void;
   totalQuestionsCount: number;
   targetFilename: string;
+  setTargetFilename?: (val: string) => void;
+  onResetPath?: () => void;
 }
 
 export const ExamMetaHeader: React.FC<ExamMetaHeaderProps> = ({
@@ -38,6 +40,8 @@ export const ExamMetaHeader: React.FC<ExamMetaHeaderProps> = ({
   setSet,
   totalQuestionsCount,
   targetFilename,
+  setTargetFilename,
+  onResetPath,
 }) => {
   const classOptions = [
     { id: 'class-12', label: 'Class 12th (Senior Sec)' },
@@ -89,12 +93,36 @@ export const ExamMetaHeader: React.FC<ExamMetaHeaderProps> = ({
           </div>
         </div>
 
-        {/* GitHub target indicator Glass Pill */}
-        <div className="w-full sm:w-auto flex items-center gap-2 px-3 py-2 rounded-2xl bg-slate-900 text-white font-mono text-xs shadow-md border border-slate-700">
-          <FileCode2 className="w-4 h-4 text-indigo-400 shrink-0" />
-          <span className="text-indigo-200 truncate max-w-full sm:max-w-xs text-[11px] font-bold">
-            {targetFilename}
-          </span>
+        {/* GitHub target indicator Glass Pill - Admin Editable */}
+        <div className="w-full sm:w-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-2 px-3 py-1.5 rounded-2xl bg-slate-900 text-white font-mono text-xs shadow-md border border-slate-700">
+          <div className="flex items-center gap-1.5 shrink-0">
+            <FileCode2 className="w-4 h-4 text-indigo-400 shrink-0" />
+            <span className="text-slate-400 text-[11px] font-bold">GitHub Path:</span>
+          </div>
+          {setTargetFilename ? (
+            <input
+              type="text"
+              value={targetFilename}
+              onChange={(e) => setTargetFilename(e.target.value)}
+              placeholder="e.g. data/papers/custom_path.json"
+              className="flex-1 bg-slate-800 text-indigo-200 font-bold text-xs px-2.5 py-1 rounded-xl border border-slate-700 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 focus:outline-none transition-all w-full sm:w-64"
+              title="Admin Editable GitHub Path"
+            />
+          ) : (
+            <span className="text-indigo-200 truncate max-w-full sm:max-w-xs text-[11px] font-bold">
+              {targetFilename}
+            </span>
+          )}
+          {onResetPath && (
+            <button
+              type="button"
+              onClick={onResetPath}
+              className="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[10px] font-sans font-semibold transition-all cursor-pointer shrink-0 border border-slate-700"
+              title="Reset to default auto-generated path"
+            >
+              ↺ Reset
+            </button>
+          )}
         </div>
       </div>
 

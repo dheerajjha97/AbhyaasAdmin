@@ -36,6 +36,8 @@ interface NotesMetaHeaderProps {
   totalTakeawaysCount: number;
   readingTimeMinutes: number;
   targetFilename: string;
+  setTargetFilename?: (val: string) => void;
+  onResetPath?: () => void;
 }
 
 export const NotesMetaHeader: React.FC<NotesMetaHeaderProps> = ({
@@ -58,6 +60,8 @@ export const NotesMetaHeader: React.FC<NotesMetaHeaderProps> = ({
   totalTakeawaysCount,
   readingTimeMinutes,
   targetFilename,
+  setTargetFilename,
+  onResetPath,
 }) => {
   return (
     <div className="p-4 sm:p-5 glass-panel space-y-4 relative overflow-hidden">
@@ -204,16 +208,40 @@ export const NotesMetaHeader: React.FC<NotesMetaHeaderProps> = ({
         </div>
       </div>
 
-      {/* Target GitHub Path Banner */}
+      {/* Target GitHub Path Banner - Admin Editable */}
       <div className="relative z-10 flex flex-wrap items-center justify-between gap-2 px-3.5 py-2 rounded-2xl bg-slate-900 text-white text-xs font-mono border-b-2 border-amber-500 shadow-md">
-        <div className="flex items-center gap-2 truncate">
+        <div className="flex items-center gap-2 flex-1 min-w-[240px]">
           <FileCode2 className="w-4 h-4 text-amber-400 shrink-0" />
-          <span className="text-slate-400 text-[11px]">GitHub Path:</span>
-          <span className="text-amber-300 font-bold truncate text-[11px]">{targetFilename}</span>
+          <span className="text-slate-400 text-[11px] shrink-0 font-bold">GitHub Path:</span>
+          {setTargetFilename ? (
+            <input
+              type="text"
+              value={targetFilename}
+              onChange={(e) => setTargetFilename(e.target.value)}
+              placeholder="e.g. data/notes/custom_path.json"
+              className="flex-1 bg-slate-800/90 text-amber-300 font-bold text-xs px-2.5 py-1 rounded-xl border border-slate-700 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 focus:outline-none transition-all"
+              title="Admin Editable GitHub Path"
+            />
+          ) : (
+            <span className="text-amber-300 font-bold truncate text-[11px]">{targetFilename}</span>
+          )}
         </div>
-        <span className="text-[10px] px-2 py-0.5 rounded-lg bg-amber-950 text-amber-300 font-semibold border border-amber-800">
-          Live Auto-Sync
-        </span>
+
+        <div className="flex items-center gap-1.5 shrink-0">
+          {onResetPath && (
+            <button
+              onClick={onResetPath}
+              type="button"
+              className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[10px] font-sans font-semibold transition-all cursor-pointer border border-slate-700"
+              title="Reset to default auto-generated path"
+            >
+              ↺ Reset
+            </button>
+          )}
+          <span className="text-[10px] px-2 py-0.5 rounded-lg bg-amber-950 text-amber-300 font-semibold border border-amber-800">
+            Admin Editable
+          </span>
+        </div>
       </div>
     </div>
   );

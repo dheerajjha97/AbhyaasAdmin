@@ -983,6 +983,8 @@ export default function App() {
               setSet={setSet}
               totalQuestionsCount={parsedResult?.stats.totalQuestions || 0}
               targetFilename={customTargetFilename}
+              setTargetFilename={setCustomTargetFilename}
+              onResetPath={() => setCustomTargetFilename(targetFilename)}
             />
 
             {activeTab === 'paste' && (
@@ -1065,6 +1067,8 @@ export default function App() {
               totalTopicsCount={parsedSyllabusResult?.stats.totalTopics || 0}
               totalUnitsCount={parsedSyllabusResult?.stats.totalUnits || 0}
               targetFilename={customSyllabusFilename}
+              setTargetFilename={setCustomSyllabusFilename}
+              onResetPath={() => setCustomSyllabusFilename(syllabusTargetFilename)}
             />
 
             {syllabusTab === 'paste' && (
