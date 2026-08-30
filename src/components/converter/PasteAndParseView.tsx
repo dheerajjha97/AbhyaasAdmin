@@ -157,33 +157,72 @@ export const PasteAndParseView: React.FC<PasteAndParseViewProps> = ({
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Box 1: Questions */}
-          <div className="p-4 rounded-3xl bg-white border border-slate-200 shadow-md card-3d-indigo space-y-2.5">
-            <label className="block text-xs font-black text-slate-700 uppercase tracking-wider">
-              1. Questions Text (खण्ड–अ, खण्ड–ब, खण्ड–स)
-            </label>
-            <textarea
-              value={rawCombinedText}
-              onChange={(e) => setRawCombinedText(e.target.value)}
-              placeholder="Paste questions (MCQs with options A,B,C,D or क,ख,ग,घ, Short, Long questions) here..."
-              rows={12}
-              className="w-full p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 font-mono text-xs focus:ring-2 focus:ring-indigo-600 focus:bg-white focus:outline-none leading-relaxed shadow-inner"
-            />
+        <div className="p-4 sm:p-5 rounded-3xl bg-white border border-slate-200 shadow-md card-3d-indigo space-y-3">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Box 1: Questions */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-black text-slate-700 uppercase tracking-wider">
+                  1. Questions Text (खण्ड–अ, खण्ड–ब, खण्ड–स)
+                </label>
+                {rawCombinedText && (
+                  <button
+                    onClick={() => setRawCombinedText('')}
+                    className="text-[11px] text-rose-600 hover:text-rose-700 font-bold cursor-pointer"
+                  >
+                    Clear Qs
+                  </button>
+                )}
+              </div>
+              <textarea
+                value={rawCombinedText}
+                onChange={(e) => setRawCombinedText(e.target.value)}
+                placeholder="Paste questions (MCQs with options A,B,C,D or क,ख,ग,घ, Short, Long questions) here..."
+                rows={13}
+                className="w-full p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 font-mono text-xs focus:ring-2 focus:ring-indigo-600 focus:bg-white focus:outline-none leading-relaxed shadow-inner"
+              />
+            </div>
+
+            {/* Box 2: Answers */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-black text-slate-700 uppercase tracking-wider">
+                  2. Answers & Explanations (Table / Text)
+                </label>
+                {rawAnswersText && (
+                  <button
+                    onClick={() => setRawAnswersText('')}
+                    className="text-[11px] text-rose-600 hover:text-rose-700 font-bold cursor-pointer"
+                  >
+                    Clear Ans
+                  </button>
+                )}
+              </div>
+              <textarea
+                value={rawAnswersText}
+                onChange={(e) => setRawAnswersText(e.target.value)}
+                placeholder={`Paste answer text/table here...\n\nExample for MCQs:\nSECTION - A: वस्तुनिष्ठ प्रश्न (MCQs) उत्तर एवं व्याख्या\n\nQ1. (a) कार्ल मार्क्स\nव्याख्या: कार्ल मार्क्स ने 1857 के विद्रोह को 'राष्ट्रीय विद्रोह' कहा था।\n\nQ2. (b) कानपुर\nव्याख्या: बीबीघर नरसंहार 1857 के दौरान...`}
+                rows={13}
+                className="w-full p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 font-mono text-xs focus:ring-2 focus:ring-indigo-600 focus:bg-white focus:outline-none leading-relaxed shadow-inner"
+              />
+            </div>
           </div>
 
-          {/* Box 2: Answers */}
-          <div className="p-4 rounded-3xl bg-white border border-slate-200 shadow-md card-3d-indigo space-y-2.5">
-            <label className="block text-xs font-black text-slate-700 uppercase tracking-wider">
-              2. Answers & Explanations (Table / Text)
-            </label>
-            <textarea
-              value={rawAnswersText}
-              onChange={(e) => setRawAnswersText(e.target.value)}
-              placeholder="Paste answer table (| प्रश्न सं. | सही उत्तर | संक्षिप्त व्याख्या |) and model answers here..."
-              rows={12}
-              className="w-full p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 font-mono text-xs focus:ring-2 focus:ring-indigo-600 focus:bg-white focus:outline-none leading-relaxed shadow-inner"
-            />
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-slate-100">
+            <div className="text-xs text-slate-500 flex items-center gap-1">
+              <Sparkles className="w-4 h-4 text-indigo-600" />
+              <span>Auto-matches Q1, Q2... with MCQs and Model Answers for Short/Long questions</span>
+            </div>
+
+            <button
+              onClick={onParse}
+              disabled={!rawCombinedText.trim()}
+              id="parse-split-btn"
+              className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-40 text-white font-black text-xs flex items-center justify-center gap-2 btn-3d-indigo transition-all cursor-pointer"
+            >
+              <span>Convert to JSON</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
           </div>
         </div>
       )}

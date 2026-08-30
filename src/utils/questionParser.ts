@@ -155,13 +155,23 @@ export function parseExamContent(
   let qBlock = text;
   let aBlock = ansText;
 
-  if (!aBlock && (text.includes('Format of answers') || text.includes('उत्तर एवं व्याख्या') || text.includes('| प्रश्न सं.'))) {
+  if (!aBlock) {
     const splitMarkers = [
+      'Answer Key:',
+      'ANSWER KEY:',
+      'Answer Key',
+      'ANSWER KEY',
+      'उत्तर कुंजी:',
+      'उत्तर कुंजी',
+      'उत्तर तालिका:',
+      'उत्तर तालिका',
       'Format of answers',
       'खण्ड–अ : वस्तुनिष्ठ प्रश्न (उत्तर एवं व्याख्या)',
       'खण्ड–अ : वस्तुनिष्ठ प्रश्न (उत्तर',
       'उत्तर एवं व्याख्या',
-      '| प्रश्न सं. | सही उत्तर |'
+      '| प्रश्न सं. | सही उत्तर |',
+      '| Q.No | Answer |',
+      '| Q. No. |'
     ];
     for (const marker of splitMarkers) {
       if (text.includes(marker)) {
@@ -175,39 +185,189 @@ export function parseExamContent(
 
   // Step 2: Parse Answers Table & Answer Sections
   const answersMap: Record<number, { correctKey: string; fullAnswer: string; explanation: string }> = {};
-  const subjectiveAnswersMap: Record<number, string> = {};
+  const subjectiveShortAnswersMap: Record<number, string> = {};
+  const subjectiveLongAnswersMap: Record<number, string> = {};
+  const genericSubjectiveAnswersMap: Record<number, string> = {};
 
-  if (aBlock) {
-    // Parse Markdown Table (| 1 | (D) IᴬIᴮ | व्याख्या |)
-    const tableRowRegex = /\|\s*(\d+)\s*\|\s*([^|]+)\s*\|\s*([^|]+)\s*\|/g;
-    let match;
-    while ((match = tableRowRegex.exec(aBlock)) !== null) {
-      const qNum = parseInt(match[1].trim(), 10);
-      const ansCol = match[2].trim();
-      const expCol = match[3].trim();
+  const keyMap: Record<string, 'A' | 'B' | 'C' | 'D'> = {
+    'A': 'A', 'a': 'A', 'क': 'A', 'अ': 'A', '1': 'A',
+    'B': 'B', 'b': 'B', 'ख': 'B', 'ब': 'B', '2': 'B',
+    'C': 'C', 'c': 'C', 'ग': 'C', 'स': 'C', '3': 'C',
+    'D': 'D', 'd': 'D', 'घ': 'D', 'द': 'D', '4': 'D',
+  };
 
-      if (!isNaN(qNum) && qNum > 0) {
-        // Extract option key e.g. "(D)" -> "D"
-        const optMatch = ansCol.match(/\(([A-D])\)/i);
-        const correctKey = optMatch ? optMatch[1].toUpperCase() : ansCol.trim();
-        answersMap[qNum] = {
-          correctKey,
-          fullAnswer: ansCol,
-          explanation: expCol
-        };
+  // Section headers patterns
+  const secAPattern = /(?:खण्ड|भाग|Section|Part|Group)\s*[–—\-:'"\s]*[अaA]|वस्तुनिष्ठ\s*प्रश्न|Objective\s*Question|MCQ/i;
+  const secBPattern = /(?:खण्ड|भाग|Section|Part|Group)\s*[–—\-:'"\s]*[बbB]|लघु\s*उत्तरीय\s*प्रश्न|लघुउत्तरीय|Short\s*Answer|Short\s*Question/i;
+  const secCPattern = /(?:खण्ड|भाग|Section|Part|Group)\s*[–—\-:'"\s]*[सcC]|दीर्घ\s*उत्तरीय\s*प्रश्न|दीर्घउत्तरीय|Long\s*Answer|Long\s*Question/i;
+
+  const parseAnswersTextToMap = (strToParse: string) => {
+    if (!strToParse || !strToParse.trim()) return;
+
+    // First, check if the answers block is divided by sections (Section A / Section B / Section C)
+    const lines = strToParse.split('\n');
+    let currentAnsSec: 'sec-a' | 'sec-b' | 'sec-c' | 'generic' = 'generic';
+    let secAAnsText = '';
+    let secBAnsText = '';
+    let secCAnsText = '';
+    let genericAnsText = '';
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (secAPattern.test(trimmed)) {
+        currentAnsSec = 'sec-a';
+        continue;
+      } else if (secBPattern.test(trimmed)) {
+        currentAnsSec = 'sec-b';
+        continue;
+      } else if (secCPattern.test(trimmed)) {
+        currentAnsSec = 'sec-c';
+        continue;
+      }
+
+      if (currentAnsSec === 'sec-a') {
+        secAAnsText += line + '\n';
+      } else if (currentAnsSec === 'sec-b') {
+        secBAnsText += line + '\n';
+      } else if (currentAnsSec === 'sec-c') {
+        secCAnsText += line + '\n';
+      } else {
+        genericAnsText += line + '\n';
       }
     }
 
-    // Parse Subjective Answers (खण्ड–ब and खण्ड–स e.g. प्रश्न 1. ... प्रश्न 21. ...)
-    const subjAnswerRegex = /(?:प्रश्न\s*|Q\s*\.?\s*No\.?|Q\s*\.?|Ans\s*|Q\s*)(\d+)[\.:\s\-–—]+([\s\S]*?)(?=(?:(?:प्रश्न\s*|Q\s*\.?\s*No\.?|Q\s*\.?|Ans\s*|Q\s*)\d+[\.:\s\-–—]+|खण्ड|Section|Part|$))/gi;
-    let sMatch;
-    while ((sMatch = subjAnswerRegex.exec(aBlock)) !== null) {
-      const qNum = parseInt(sMatch[1].trim(), 10);
-      const content = sMatch[2].trim();
-      if (!isNaN(qNum)) {
-        subjectiveAnswersMap[qNum] = content;
+    // MCQ Answers parser (handles "Q1. (a) कार्ल मार्क्स\nव्याख्या: कार्ल मार्क्स ने...")
+    const parseMCQAnswers = (textChunk: string) => {
+      if (!textChunk.trim()) return;
+
+      // 1. Markdown Table (| 1 | (a) कार्ल मार्क्स | व्याख्या |)
+      const tableRowRegex = /\|\s*(\d+)\s*\|\s*([^|]+)\s*\|\s*([^|]+)\s*\|/g;
+      let match;
+      while ((match = tableRowRegex.exec(textChunk)) !== null) {
+        const qNum = parseInt(match[1].trim(), 10);
+        const ansCol = match[2].trim();
+        const expCol = match[3].trim();
+
+        if (!isNaN(qNum) && qNum > 0 && !answersMap[qNum]) {
+          const optMatch = ansCol.match(/\(?([A-Da-dक-घअ-द1-4])\)?/i);
+          const rawKey = optMatch ? optMatch[1] : ansCol.trim();
+          const correctKey = keyMap[rawKey] || 'A';
+          answersMap[qNum] = {
+            correctKey,
+            fullAnswer: ansCol,
+            explanation: expCol || `सही उत्तर (${correctKey}) है।`,
+          };
+        }
       }
+
+      // 2. Structured Q-by-Q format:
+      // "Q1. (a) कार्ल मार्क्स\nव्याख्या: कार्ल मार्क्स ने 1857 के विद्रोह को 'राष्ट्रीय विद्रोह'..."
+      // "Q2. (b) कानपुर\nव्याख्या: ..."
+      // "1. (a) कार्ल मार्क्स\nव्याख्या: ..."
+      const qItemRegex = /(?:^|\n)\s*(?:Q\s*\.?\s*No\.?|Q\s*\.?|प्रश्न\s*सं\s*\.?|प्रश्न\s*|Ans\s*\.?\s*Q?\s*|उत्तर\s*)?\s*(\d+)[\.\)\-:\s]+([\s\S]*?)(?=(?:\n\s*(?:Q\s*\.?\s*No\.?|Q\s*\.?|प्रश्न\s*सं\s*\.?|प्रश्न\s*|Ans\s*\.?\s*Q?\s*|उत्तर\s*)?\s*\d+[\.\)\-:\s]+|\n\s*(?:SECTION|Section|खण्ड|भाग)\s*|$))/gi;
+      let qMatch;
+      while ((qMatch = qItemRegex.exec(textChunk)) !== null) {
+        const qNum = parseInt(qMatch[1].trim(), 10);
+        const itemBody = qMatch[2].trim();
+
+        if (isNaN(qNum) || qNum <= 0 || answersMap[qNum]) continue;
+
+        // Check for option key (a), (b), (c), (d) or A, B, C, D or (क), (ख), (ग), (घ)
+        const optKeyMatch = itemBody.match(/(?:(?:Ans|Answer|उत्तर)\s*[:\-\.]?\s*)?(?:\(|\[)?([A-Da-dक-घअ-द1-4])(?:\)|\]|\.|\-)\s*([^\n\r]*)/i);
+        if (optKeyMatch) {
+          const rawKey = optKeyMatch[1];
+          const correctKey = keyMap[rawKey] || 'A';
+          let optText = optKeyMatch[2] ? optKeyMatch[2].trim() : '';
+
+          if (/(?:व्याख्या|Explanation|कारण|विवरण|Explain)/i.test(optText)) {
+            optText = optText.split(/(?:व्याख्या|Explanation|कारण|विवरण|Explain)/i)[0].trim();
+          }
+
+          // Look for explanation (व्याख्या: ... or Explanation: ...)
+          let exp = '';
+          const expMatch = itemBody.match(/(?:व्याख्या|Explanation|कारण|विवरण|Explain)\s*[:\-\=–—\.\s]+([\s\S]*)/i);
+          if (expMatch) {
+            exp = expMatch[1].trim();
+          } else {
+            // Check subsequent lines that are not other options
+            const bodyLines = itemBody.split('\n').map((l) => l.trim()).filter(Boolean);
+            if (bodyLines.length > 1) {
+              const remainingLines = bodyLines.slice(1);
+              const nonOptionLines = remainingLines.filter(l => !/^(?:\(|\[)?[A-Da-dक-घअ-द1-4](?:\)|\]|\.|\-)\s+/.test(l));
+              if (nonOptionLines.length > 0) {
+                exp = nonOptionLines.join('\n').trim();
+              } else if (optText) {
+                exp = `सही उत्तर (${correctKey}) ${optText} है।`;
+              } else {
+                exp = `सही उत्तर (${correctKey}) है।`;
+              }
+            } else if (optText) {
+              exp = `सही उत्तर (${correctKey}) ${optText} है।`;
+            } else {
+              exp = `सही उत्तर (${correctKey}) है।`;
+            }
+          }
+
+          answersMap[qNum] = {
+            correctKey,
+            fullAnswer: optText ? `(${correctKey}) ${optText}` : `(${correctKey})`,
+            explanation: exp,
+          };
+        }
+      }
+
+      // 3. Compact List format fallback e.g. "1. (D), 2. (A), 3. (B)" or "1-D, 2-A" or "1.D 2.A"
+      const listAnswerRegex = /(?:Q\s*\.?\s*No\.?|Q\s*\.?|प्रश्न\s*)?\s*(\d+)[\.\)\-:\s]+\s*(?:\(|\[)?([A-Da-dक-घअ-द1-4])(?:\)|\]|\.|\s|,|$)/g;
+      let listMatch;
+      while ((listMatch = listAnswerRegex.exec(textChunk)) !== null) {
+        const qNum = parseInt(listMatch[1].trim(), 10);
+        const rawKey = listMatch[2];
+        const correctKey = keyMap[rawKey];
+        if (!isNaN(qNum) && qNum > 0 && correctKey && !answersMap[qNum]) {
+          answersMap[qNum] = {
+            correctKey,
+            fullAnswer: `(${correctKey})`,
+            explanation: `सही उत्तर (${correctKey}) है।`,
+          };
+        }
+      }
+    };
+
+    // Subjective Answers parser (for Short & Long questions)
+    const parseSubjectiveAnswers = (textChunk: string, targetMap: Record<number, string>) => {
+      if (!textChunk.trim()) return;
+      const subjAnswerRegex = /(?:^|\n)\s*(?:प्रश्न\s*सं\s*\.?|प्रश्न\s*|Q\s*\.?\s*No\.?|Q\s*\.?|Ans\s*\.?\s*Q?\s*|उत्तर\s*)?\s*(\d+)[\.\)\-:\s]+([\s\S]*?)(?=(?:\n\s*(?:प्रश्न\s*सं\s*\.?|प्रश्न\s*|Q\s*\.?\s*No\.?|Q\s*\.?|Ans\s*|उत्तर)\s*\d+[\.\)\-:\s]+|\n\s*(?:SECTION|Section|खण्ड|भाग)\s*|$))/gi;
+      let sMatch;
+      while ((sMatch = subjAnswerRegex.exec(textChunk)) !== null) {
+        const qNum = parseInt(sMatch[1].trim(), 10);
+        const content = sMatch[2].trim();
+        if (!isNaN(qNum) && content && !targetMap[qNum]) {
+          targetMap[qNum] = content;
+        }
+      }
+    };
+
+    // Run section-specific parsers
+    if (secAAnsText) {
+      parseMCQAnswers(secAAnsText);
     }
+    if (secBAnsText) {
+      parseSubjectiveAnswers(secBAnsText, subjectiveShortAnswersMap);
+    }
+    if (secCAnsText) {
+      parseSubjectiveAnswers(secCAnsText, subjectiveLongAnswersMap);
+    }
+    if (genericAnsText) {
+      parseMCQAnswers(genericAnsText);
+      parseSubjectiveAnswers(genericAnsText, genericSubjectiveAnswersMap);
+    }
+  };
+
+  if (aBlock && aBlock.trim()) {
+    parseAnswersTextToMap(aBlock);
+  } else {
+    // Only search qBlock if aBlock was not provided
+    parseAnswersTextToMap(qBlock);
   }
 
   // Step 3: Identify Sections in Questions Block
@@ -218,11 +378,6 @@ export function parseExamContent(
   const secALines: string[] = [];
   const secBLines: string[] = [];
   const secCLines: string[] = [];
-
-  // Patterns for Section Headers
-  const secAPattern = /(?:खण्ड|भाग|Section|Part|Group)\s*[–—\-:'"\s]*[अaA]|वस्तुनिष्ठ\s*प्रश्न|Objective\s*Question|MCQ\s*Section/i;
-  const secBPattern = /(?:खण्ड|भाग|Section|Part|Group)\s*[–—\-:'"\s]*[बbB]|लघु\s*उत्तरीय\s*प्रश्न|लघुउत्तरीय|Short\s*Answer|Short\s*Question|Subjective\s*Question|गैर[-–—\s]*वस्तुनिष्ठ|विषयनिष्ठ/i;
-  const secCPattern = /(?:खण्ड|भाग|Section|Part|Group)\s*[–—\-:'"\s]*[सcC]|दीर्घ\s*उत्तरीय\s*प्रश्न|दीर्घउत्तरीय|Long\s*Answer|Long\s*Question|Essay\s*Type/i;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -255,11 +410,11 @@ export function parseExamContent(
   allQuestions.push(...parsedSecA);
 
   // Parse Section B (Short questions)
-  const parsedSecB = parseSubjectiveSection(secBLines.join('\n'), 'sec-b', 'खण्ड–ब : लघु उत्तरीय प्रश्न', 2, subjectiveAnswersMap);
+  const parsedSecB = parseSubjectiveSection(secBLines.join('\n'), 'sec-b', 'खण्ड–ब : लघु उत्तरीय प्रश्न', 2, subjectiveShortAnswersMap, genericSubjectiveAnswersMap);
   allQuestions.push(...parsedSecB);
 
   // Parse Section C (Long questions)
-  const parsedSecC = parseSubjectiveSection(secCLines.join('\n'), 'sec-c', 'खण्ड–स : दीर्घ उत्तरीय प्रश्न', 5, subjectiveAnswersMap);
+  const parsedSecC = parseSubjectiveSection(secCLines.join('\n'), 'sec-c', 'खण्ड–स : दीर्घ उत्तरीय प्रश्न', 5, subjectiveLongAnswersMap, genericSubjectiveAnswersMap);
   allQuestions.push(...parsedSecC);
 
   // Step 4: Auto-reclassify & Balance Questions without Options or misclassified questions
@@ -297,9 +452,10 @@ export function parseExamContent(
         q.sectionName = 'खण्ड–स : दीर्घ उत्तरीय प्रश्न';
         q.marks = 5;
         q.options = undefined;
-        if (subjectiveAnswersMap[q.questionNumber]) {
-          q.modelAnswer = subjectiveAnswersMap[q.questionNumber];
-          q.explanationHindi = subjectiveAnswersMap[q.questionNumber];
+        const ans = subjectiveLongAnswersMap[q.questionNumber] || genericSubjectiveAnswersMap[q.questionNumber];
+        if (ans) {
+          q.modelAnswer = ans;
+          q.explanationHindi = ans;
         }
       } else {
         q.type = 'short';
@@ -307,9 +463,10 @@ export function parseExamContent(
         q.sectionName = 'खण्ड–ब : लघु उत्तरीय प्रश्न';
         q.marks = 2;
         q.options = undefined;
-        if (subjectiveAnswersMap[q.questionNumber]) {
-          q.modelAnswer = subjectiveAnswersMap[q.questionNumber];
-          q.explanationHindi = subjectiveAnswersMap[q.questionNumber];
+        const ans = subjectiveShortAnswersMap[q.questionNumber] || genericSubjectiveAnswersMap[q.questionNumber];
+        if (ans) {
+          q.modelAnswer = ans;
+          q.explanationHindi = ans;
         }
       }
     }
@@ -416,9 +573,23 @@ function parseMCQSection(
 
     // Lookup Answer & Explanation
     const ansInfo = answersMap[qNum];
-    const correctKey = ansInfo ? ansInfo.correctKey : undefined;
-    const explanation = ansInfo ? ansInfo.explanation : undefined;
-    const fullAnswer = ansInfo ? ansInfo.fullAnswer : undefined;
+    let correctKey = ansInfo ? ansInfo.correctKey : undefined;
+    let explanation = ansInfo ? ansInfo.explanation : undefined;
+    let fullAnswer = ansInfo ? ansInfo.fullAnswer : undefined;
+
+    // Check inline answer inside body/questionText if still not found
+    if (!correctKey) {
+      const inlineMatch = body.match(/(?:\(|\[|\s)(?:Ans|Answer|उत्तर|सही उत्तर|Ans\.)\s*[:\-\=–—\.\s]*\s*(?:\(|\[)?([A-Da-dक-घअ-द1-4])(?:\)|\]|\.|\s|$)/i);
+      if (inlineMatch) {
+        const rawKey = inlineMatch[1];
+        correctKey = keyMap[rawKey];
+        if (correctKey) {
+          fullAnswer = `(${correctKey})`;
+          explanation = `सही उत्तर (${correctKey}) है।`;
+          questionText = questionText.replace(/(?:\(|\[|\s)(?:Ans|Answer|उत्तर|सही उत्तर|Ans\.)\s*[:\-\=–—\.\s]*\s*(?:\(|\[)?[A-Da-dक-घअ-द1-4](?:\)|\]|\.|\s|$)/gi, '').trim();
+        }
+      }
+    }
 
     questions.push({
       id: `q-mcq-${qNum}`,
@@ -447,7 +618,8 @@ function parseSubjectiveSection(
   sectionId: 'sec-b' | 'sec-c',
   sectionName: string,
   marksPerQuestion: number,
-  subjectiveAnswersMap: Record<number, string>
+  specificAnswersMap: Record<number, string>,
+  fallbackAnswersMap?: Record<number, string>
 ): ParsedQuestion[] {
   const questions: ParsedQuestion[] = [];
   if (!text.trim()) return questions;
@@ -467,7 +639,7 @@ function parseSubjectiveSection(
 
     if (isNaN(qNum) || !questionText) continue;
 
-    const modelAns = subjectiveAnswersMap[qNum];
+    const modelAns = specificAnswersMap[qNum] || (fallbackAnswersMap ? fallbackAnswersMap[qNum] : undefined);
 
     questions.push({
       id: `q-${sectionId}-${qNum}`,
