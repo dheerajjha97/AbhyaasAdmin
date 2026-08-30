@@ -109,8 +109,23 @@ export async function fetchRepoStats(
       treeRes = await fetch(`https://api.github.com/repos/${effectiveOwner}/${effectiveRepo}/git/trees/master?recursive=1`, { headers });
     }
 
+    // Smart Fallback 1: If 401 or 403 or 404 with token, try fetching without Authorization header (in case repo is public)
+    if (!treeRes.ok && effectiveToken) {
+      const publicHeaders = { Accept: 'application/vnd.github.v3+json' };
+      let pubBranch = branch || 'main';
+      let pubTreeRes = await fetch(`https://api.github.com/repos/${effectiveOwner}/${effectiveRepo}/git/trees/${pubBranch}?recursive=1`, { headers: publicHeaders });
+      if (!pubTreeRes.ok && pubBranch === 'main') {
+        pubBranch = 'master';
+        pubTreeRes = await fetch(`https://api.github.com/repos/${effectiveOwner}/${effectiveRepo}/git/trees/master?recursive=1`, { headers: publicHeaders });
+      }
+      if (pubTreeRes.ok) {
+        treeRes = pubTreeRes;
+        targetBranch = pubBranch;
+      }
+    }
+
     if (!treeRes.ok) {
-      // Smart Fallback: If 404 and token is provided, check if repo exists under authenticated user's username
+      // Smart Fallback 2: If 404 and token is provided, check if repo exists under authenticated user's username
       if (treeRes.status === 404 && effectiveToken) {
         try {
           const userRes = await fetch('https://api.github.com/user', { headers });
@@ -138,9 +153,9 @@ export async function fetchRepoStats(
       if (!treeRes.ok) {
         let errMsg = `Could not fetch repository (${treeRes.status} ${treeRes.statusText})`;
         if (treeRes.status === 404) {
-          errMsg = `Repository "${effectiveOwner}/${effectiveRepo}" not found on GitHub. If your repository is under your personal account or a different name, please update Owner/Repo in Settings or create the repository.`;
+          errMsg = `Repository "${effectiveOwner}/${effectiveRepo}" not found on GitHub. Please check if repo is created or update Owner/Repo in Settings.`;
         } else if (treeRes.status === 401) {
-          errMsg = `Invalid or expired GitHub Personal Access Token. Please set a valid token.`;
+          errMsg = `Invalid or expired GitHub Personal Access Token. Please set a valid token in Settings.`;
         }
         return { success: false, error: errMsg };
       }

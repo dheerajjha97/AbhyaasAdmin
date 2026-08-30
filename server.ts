@@ -412,6 +412,21 @@ app.post('/api/github/fetch-repo-stats', async (req, res) => {
       treeRes = await fetch(`https://api.github.com/repos/${effectiveOwner}/${effectiveRepo}/git/trees/master?recursive=1`, { headers });
     }
 
+    // Fallback: If 401 or 403 or 404 with token, try without token in case repo is public
+    if (!treeRes.ok && effectiveToken) {
+      const pubHeaders = { Accept: 'application/vnd.github+json', 'User-Agent': 'Abhyaas-Admin-App' };
+      let pubBranch = branch || 'main';
+      let pubTreeRes = await fetch(`https://api.github.com/repos/${effectiveOwner}/${effectiveRepo}/git/trees/${pubBranch}?recursive=1`, { headers: pubHeaders });
+      if (!pubTreeRes.ok && pubBranch === 'main') {
+        pubBranch = 'master';
+        pubTreeRes = await fetch(`https://api.github.com/repos/${effectiveOwner}/${effectiveRepo}/git/trees/master?recursive=1`, { headers: pubHeaders });
+      }
+      if (pubTreeRes.ok) {
+        treeRes = pubTreeRes;
+        targetBranch = pubBranch;
+      }
+    }
+
     if (!treeRes.ok) {
       const err = await treeRes.json().catch(() => ({}));
       return res.status(treeRes.status).json({
