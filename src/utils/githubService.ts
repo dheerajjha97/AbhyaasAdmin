@@ -108,13 +108,40 @@ export async function fetchRepoStats(
     }
 
     if (!treeRes.ok) {
-      let errMsg = `Could not fetch repository (${treeRes.status} ${treeRes.statusText})`;
-      if (treeRes.status === 404) {
-        errMsg = `Repository "${effectiveOwner}/${effectiveRepo}" not found or private. Please check token permissions.`;
-      } else if (treeRes.status === 401) {
-        errMsg = `Invalid or expired GitHub Personal Access Token. Please set a valid token.`;
+      // Smart Fallback: If 404 and token is provided, check if repo exists under authenticated user's username
+      if (treeRes.status === 404 && effectiveToken) {
+        try {
+          const userRes = await fetch('https://api.github.com/user', { headers });
+          if (userRes.ok) {
+            const userData = await userRes.json();
+            if (userData.login && userData.login.toLowerCase() !== effectiveOwner.toLowerCase()) {
+              const altOwner = userData.login;
+              let altTreeRes = await fetch(`https://api.github.com/repos/${altOwner}/${effectiveRepo}/git/trees/${targetBranch}?recursive=1`, { headers });
+              if (!altTreeRes.ok && targetBranch === 'main') {
+                altTreeRes = await fetch(`https://api.github.com/repos/${altOwner}/${effectiveRepo}/git/trees/master?recursive=1`, { headers });
+                if (altTreeRes.ok) targetBranch = 'master';
+              }
+              if (altTreeRes.ok) {
+                // Found repo under authenticated user! Auto-save owner to localStorage
+                localStorage.setItem('abhyaas_gh_owner', altOwner);
+                treeRes = altTreeRes;
+              }
+            }
+          }
+        } catch (e) {
+          // Ignore auto-discovery error
+        }
       }
-      return { success: false, error: errMsg };
+
+      if (!treeRes.ok) {
+        let errMsg = `Could not fetch repository (${treeRes.status} ${treeRes.statusText})`;
+        if (treeRes.status === 404) {
+          errMsg = `Repository "${effectiveOwner}/${effectiveRepo}" not found on GitHub. If your repository is under your personal account or a different name, please update Owner/Repo in Settings or create the repository.`;
+        } else if (treeRes.status === 401) {
+          errMsg = `Invalid or expired GitHub Personal Access Token. Please set a valid token.`;
+        }
+        return { success: false, error: errMsg };
+      }
     }
 
     const treeData = await treeRes.json();
@@ -225,9 +252,19 @@ export async function testConnection(
     }
     const userData = await userRes.json();
 
+    let activeOwner = effectiveOwner;
     let repoStatus = { exists: false, isPrivate: false, defaultBranch: 'main', repoName: effectiveRepo };
     if (effectiveOwner && effectiveRepo) {
-      const repoRes = await fetch(`https://api.github.com/repos/${effectiveOwner}/${effectiveRepo}`, { headers });
+      let repoRes = await fetch(`https://api.github.com/repos/${effectiveOwner}/${effectiveRepo}`, { headers });
+      if (!repoRes.ok && userData.login && userData.login.toLowerCase() !== effectiveOwner.toLowerCase()) {
+        const userRepoRes = await fetch(`https://api.github.com/repos/${userData.login}/${effectiveRepo}`, { headers });
+        if (userRepoRes.ok) {
+          repoRes = userRepoRes;
+          activeOwner = userData.login;
+          localStorage.setItem('abhyaas_gh_owner', userData.login);
+        }
+      }
+
       if (repoRes.ok) {
         const repoData = await repoRes.json();
         repoStatus = {
@@ -241,7 +278,7 @@ export async function testConnection(
 
     return {
       success: true,
-      message: `Authenticated as @${userData.login}. ${repoStatus.exists ? `Repository ${effectiveOwner}/${effectiveRepo} is ready.` : `Repo ${effectiveOwner}/${effectiveRepo} not found.`}`,
+      message: `Authenticated as @${userData.login}. ${repoStatus.exists ? `Repository ${activeOwner}/${effectiveRepo} is ready.` : `Repo "${activeOwner}/${effectiveRepo}" not found.`}`,
       user: {
         login: userData.login,
         avatar_url: userData.avatar_url,
