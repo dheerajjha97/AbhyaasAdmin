@@ -37,6 +37,7 @@ import { SAMPLE_BIOLOGY_2026_TEXT } from './data/sampleQuestionBank';
 import { INITIAL_PAPERS } from './data/initialData';
 import { QuestionPaper } from './types';
 import { ALL_SUBJECTS, getSubjectDisplayName } from './data/subjects';
+import { pushFileToGitHub } from './utils/githubService';
 
 // Syllabus Engine Components & Parser
 import { SyllabusMetaHeader } from './components/syllabus/SyllabusMetaHeader';
@@ -255,41 +256,36 @@ export default function App() {
   const handlePushToGitHub = async () => {
     if (!parsedResult) return null;
 
-    const payload = {
-      filename: customTargetFilename,
-      jsonContent: {
-        schemaVersion: '2.0',
-        paper: {
-          id: parsedResult.paperId,
-          title: parsedResult.title,
-          classId: parsedResult.classId,
-          subjectId: parsedResult.subjectId,
-          board: parsedResult.board,
-          year: parsedResult.year,
-          set: parsedResult.set,
-          durationMinutes: parsedResult.durationMinutes,
-          totalMarks: parsedResult.totalMarks,
-          totalQuestions: parsedResult.stats.totalQuestions,
-          status: 'ready',
-        },
-        sections: parsedResult.sections,
-        stats: parsedResult.stats,
-        questions: parsedResult.questions,
+    const jsonContent = {
+      schemaVersion: '2.0',
+      paper: {
+        id: parsedResult.paperId,
+        title: parsedResult.title,
+        classId: parsedResult.classId,
+        subjectId: parsedResult.subjectId,
+        board: parsedResult.board,
+        year: parsedResult.year,
+        set: parsedResult.set,
+        durationMinutes: parsedResult.durationMinutes,
+        totalMarks: parsedResult.totalMarks,
+        totalQuestions: parsedResult.stats.totalQuestions,
+        status: 'ready',
       },
-      commitMessage,
-      branch,
-      githubToken,
-      repoOwner,
-      repoName,
+      sections: parsedResult.sections,
+      stats: parsedResult.stats,
+      questions: parsedResult.questions,
     };
 
-    const res = await fetch('/api/publish/github-json', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+    const data = await pushFileToGitHub({
+      token: githubToken,
+      owner: repoOwner,
+      repo: repoName,
+      path: customTargetFilename,
+      content: JSON.stringify(jsonContent, null, 2),
+      commitMessage,
+      branch,
     });
 
-    const data = await res.json();
     if (data.success) {
       const newHistoryItem = {
         id: `push-${Date.now()}`,
@@ -550,44 +546,39 @@ export default function App() {
   const handlePushSyllabusToGitHub = async () => {
     if (!parsedSyllabusResult) return null;
 
-    const payload = {
-      filename: customSyllabusFilename,
-      jsonContent: {
-        schemaVersion: '2.0',
-        contentType: 'syllabus',
-        generatedAt: new Date().toISOString(),
-        syllabus: {
-          id: parsedSyllabusResult.syllabusId,
-          title: parsedSyllabusResult.title,
-          classId: parsedSyllabusResult.classId,
-          className: parsedSyllabusResult.className,
-          subjectId: parsedSyllabusResult.subjectId,
-          subjectName: parsedSyllabusResult.subjectName,
-          board: parsedSyllabusResult.board,
-          academicYear: parsedSyllabusResult.academicYear,
-          stream: parsedSyllabusResult.stream,
-          totalMarks: parsedSyllabusResult.totalMarks,
-          totalUnits: parsedSyllabusResult.stats.totalUnits,
-          totalChapters: parsedSyllabusResult.stats.totalChapters,
-          totalTopics: parsedSyllabusResult.stats.totalTopics,
-        },
-        units: parsedSyllabusResult.units,
-        chapters: parsedSyllabusResult.chapters,
+    const jsonContent = {
+      schemaVersion: '2.0',
+      contentType: 'syllabus',
+      generatedAt: new Date().toISOString(),
+      syllabus: {
+        id: parsedSyllabusResult.syllabusId,
+        title: parsedSyllabusResult.title,
+        classId: parsedSyllabusResult.classId,
+        className: parsedSyllabusResult.className,
+        subjectId: parsedSyllabusResult.subjectId,
+        subjectName: parsedSyllabusResult.subjectName,
+        board: parsedSyllabusResult.board,
+        academicYear: parsedSyllabusResult.academicYear,
+        stream: parsedSyllabusResult.stream,
+        totalMarks: parsedSyllabusResult.totalMarks,
+        totalUnits: parsedSyllabusResult.stats.totalUnits,
+        totalChapters: parsedSyllabusResult.stats.totalChapters,
+        totalTopics: parsedSyllabusResult.stats.totalTopics,
       },
-      commitMessage: sCommitMessage,
-      branch: sBranch,
-      githubToken,
-      repoOwner,
-      repoName,
+      units: parsedSyllabusResult.units,
+      chapters: parsedSyllabusResult.chapters,
     };
 
-    const res = await fetch('/api/publish/github-json', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+    const data = await pushFileToGitHub({
+      token: githubToken,
+      owner: repoOwner,
+      repo: repoName,
+      path: customSyllabusFilename,
+      content: JSON.stringify(jsonContent, null, 2),
+      commitMessage: sCommitMessage,
+      branch: sBranch,
     });
 
-    const data = await res.json();
     if (data.success) {
       const newHistoryItem = {
         id: `s-push-${Date.now()}`,

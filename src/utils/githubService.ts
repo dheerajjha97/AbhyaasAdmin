@@ -318,7 +318,7 @@ export async function pushFileToGitHub(params: {
   owner?: string;
   repo?: string;
   path: string;
-  content: string;
+  content: string | object;
   commitMessage: string;
   branch?: string;
 }): Promise<{ success: boolean; commitSha?: string; fileUrl?: string; error?: string }> {
@@ -326,6 +326,17 @@ export async function pushFileToGitHub(params: {
   const effectiveRepo = (params.repo || localStorage.getItem('abhyaas_gh_repo') || 'AbhyaasData').trim();
   const effectiveToken = (params.token || localStorage.getItem('abhyaas_gh_token') || '').trim();
   const branch = params.branch || 'main';
+
+  const stringContent = typeof params.content === 'string'
+    ? params.content
+    : JSON.stringify(params.content, null, 2);
+
+  let parsedContentObj: any = null;
+  try {
+    parsedContentObj = typeof params.content === 'object' ? params.content : JSON.parse(params.content as string);
+  } catch {
+    parsedContentObj = params.content;
+  }
 
   // 1. Try Backend First
   try {
@@ -337,7 +348,7 @@ export async function pushFileToGitHub(params: {
         owner: effectiveOwner,
         repo: effectiveRepo,
         filename: params.path,
-        content: JSON.parse(params.content),
+        content: parsedContentObj,
         commitMessage: params.commitMessage,
         branch,
       }),
@@ -355,7 +366,7 @@ export async function pushFileToGitHub(params: {
 
   // 2. Direct GitHub REST API Fallback
   if (!effectiveToken) {
-    return { success: false, error: 'GitHub Token required for pushing files.' };
+    return { success: false, error: 'GitHub Token required for pushing files. Please set token in Settings or GitHub popup.' };
   }
 
   try {
@@ -371,12 +382,14 @@ export async function pushFileToGitHub(params: {
     let existingSha: string | undefined;
 
     if (existingFileRes.ok) {
-      const existingData = await existingFileRes.json();
-      existingSha = existingData.sha;
+      const { isJson, data } = await safeParseJson(existingFileRes);
+      if (isJson && data) {
+        existingSha = data.sha;
+      }
     }
 
     // UTF-8 to Base64 encoder
-    const utf8Bytes = new TextEncoder().encode(params.content);
+    const utf8Bytes = new TextEncoder().encode(stringContent);
     let binary = '';
     utf8Bytes.forEach((b) => (binary += String.fromCharCode(b)));
     const base64Content = btoa(binary);
@@ -393,18 +406,19 @@ export async function pushFileToGitHub(params: {
     });
 
     if (!putRes.ok) {
-      const errData = await putRes.json().catch(() => ({}));
+      const { isJson, data: errData } = await safeParseJson(putRes);
+      const errMsg = (isJson && errData && errData.message) ? errData.message : putRes.statusText;
       return {
         success: false,
-        error: `GitHub Commit Error (${putRes.status}): ${errData.message || putRes.statusText}`,
+        error: `GitHub Commit Error (${putRes.status}): ${errMsg}`,
       };
     }
 
-    const result = await putRes.json();
+    const { data: result } = await safeParseJson(putRes);
     return {
       success: true,
-      commitSha: result.commit?.sha || 'pushed',
-      fileUrl: result.content?.html_url || `https://github.com/${effectiveOwner}/${effectiveRepo}/blob/${branch}/${params.path}`,
+      commitSha: result?.commit?.sha || 'pushed',
+      fileUrl: result?.content?.html_url || `https://github.com/${effectiveOwner}/${effectiveRepo}/blob/${branch}/${params.path}`,
     };
   } catch (err: any) {
     return { success: false, error: err.message || 'Direct GitHub push failed.' };
