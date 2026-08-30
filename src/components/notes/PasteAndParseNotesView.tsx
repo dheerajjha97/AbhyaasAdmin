@@ -13,10 +13,6 @@ import {
   Flame,
   Trash2
 } from 'lucide-react';
-import {
-  SAMPLE_BIOLOGY_NOTES_TEXT,
-  SAMPLE_PHYSICS_NOTES_TEXT
-} from '../../utils/notesParser';
 
 interface PasteAndParseNotesViewProps {
   rawNotesText: string;
@@ -38,34 +34,12 @@ export const PasteAndParseNotesView: React.FC<PasteAndParseNotesViewProps> = ({
   const wordCount = rawNotesText.trim() ? rawNotesText.trim().split(/\s+/).length : 0;
   const lineCount = rawNotesText ? rawNotesText.split('\n').length : 0;
 
-  const handleLoadSample = (type: 'biology' | 'physics') => {
-    if (type === 'biology') {
-      setRawNotesText(SAMPLE_BIOLOGY_NOTES_TEXT.trim());
-    } else {
-      setRawNotesText(SAMPLE_PHYSICS_NOTES_TEXT.trim());
-    }
-  };
-
   return (
     <div className="space-y-4">
       {/* Action and Preset Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-sm">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Quick Load Presets:</span>
-          <button
-            onClick={() => handleLoadSample('biology')}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-200/80 transition-all shadow-sm active:scale-95"
-          >
-            <BookOpen className="w-3.5 h-3.5 text-emerald-600" />
-            Class 12 Biology (Human Reproduction)
-          </button>
-          <button
-            onClick={() => handleLoadSample('physics')}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-800 text-xs font-bold border border-indigo-200/80 transition-all shadow-sm active:scale-95"
-          >
-            <Atom className="w-3.5 h-3.5 text-indigo-600" />
-            Class 12 Physics (Electrostatics & Formulas)
-          </button>
+          <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Paste & Structure Notes:</span>
         </div>
 
         <div className="flex items-center gap-2">

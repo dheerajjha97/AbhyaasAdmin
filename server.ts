@@ -378,6 +378,111 @@ app.post('/api/github/create-repo', async (req, res) => {
   }
 });
 
+// Fetch Repository Contents & Stats (Papers, Syllabus, Notes) from GitHub REST API
+app.post('/api/github/fetch-repo-stats', async (req, res) => {
+  try {
+    const { token, owner, repo, branch = 'main' } = req.body;
+    const effectiveToken = token || process.env.GITHUB_TOKEN;
+    const effectiveOwner = owner || process.env.GITHUB_OWNER;
+    const effectiveRepo = repo || process.env.GITHUB_REPO;
+
+    if (!effectiveOwner || !effectiveRepo) {
+      return res.status(400).json({
+        success: false,
+        error: 'Repository owner and repository name are required to fetch data.',
+      });
+    }
+
+    const headers: Record<string, string> = {
+      Accept: 'application/vnd.github+json',
+      'User-Agent': 'Abhyaas-Admin-App',
+    };
+    if (effectiveToken) {
+      headers.Authorization = `Bearer ${effectiveToken}`;
+    }
+
+    // Attempt 1: Fetch repository recursive git tree
+    let targetBranch = branch || 'main';
+    let treeUrl = `https://api.github.com/repos/${effectiveOwner}/${effectiveRepo}/git/trees/${targetBranch}?recursive=1`;
+    let treeRes = await fetch(treeUrl, { headers });
+
+    // Fallback if branch 'main' fails, try 'master'
+    if (!treeRes.ok && targetBranch === 'main') {
+      targetBranch = 'master';
+      treeRes = await fetch(`https://api.github.com/repos/${effectiveOwner}/${effectiveRepo}/git/trees/master?recursive=1`, { headers });
+    }
+
+    if (!treeRes.ok) {
+      const err = await treeRes.json().catch(() => ({}));
+      return res.status(treeRes.status).json({
+        success: false,
+        error: `Could not fetch GitHub repo tree (${treeRes.status}): ${err.message || treeRes.statusText}`,
+      });
+    }
+
+    const treeData = await treeRes.json();
+    const tree: Array<{ path: string; type: string; size?: number; sha?: string }> = treeData.tree || [];
+
+    const papersFiles: string[] = [];
+    const syllabusFiles: string[] = [];
+    const notesFiles: string[] = [];
+    const otherJsonFiles: string[] = [];
+    const foldersSet = new Set<string>();
+
+    tree.forEach((item) => {
+      if (item.type === 'tree') {
+        foldersSet.add(item.path);
+      } else if (item.type === 'blob') {
+        const lastSlash = item.path.lastIndexOf('/');
+        if (lastSlash > 0) {
+          foldersSet.add(item.path.substring(0, lastSlash));
+        }
+
+        const lowerPath = item.path.toLowerCase();
+        if (lowerPath.endsWith('.json') || lowerPath.endsWith('.md')) {
+          if (lowerPath.includes('paper') || lowerPath.includes('qbank') || lowerPath.includes('question')) {
+            papersFiles.push(item.path);
+          } else if (lowerPath.includes('syllabus') || lowerPath.includes('curriculum')) {
+            syllabusFiles.push(item.path);
+          } else if (lowerPath.includes('note') || lowerPath.includes('revision')) {
+            notesFiles.push(item.path);
+          } else if (lowerPath.endsWith('.json')) {
+            otherJsonFiles.push(item.path);
+          }
+        }
+      }
+    });
+
+    const foldersList = Array.from(foldersSet).sort();
+
+    return res.json({
+      success: true,
+      repo: `${effectiveOwner}/${effectiveRepo}`,
+      branch: targetBranch,
+      folders: foldersList,
+      stats: {
+        papersCount: papersFiles.length,
+        syllabusCount: syllabusFiles.length,
+        notesCount: notesFiles.length,
+        otherJsonCount: otherJsonFiles.length,
+        totalFilesCount: papersFiles.length + syllabusFiles.length + notesFiles.length + otherJsonFiles.length,
+      },
+      files: {
+        papers: papersFiles,
+        syllabus: syllabusFiles,
+        notes: notesFiles,
+        other: otherJsonFiles,
+      },
+      lastFetched: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      error: error.message || 'Internal error fetching GitHub repo stats',
+    });
+  }
+});
+
 // GitHub Publish Release Endpoint
 app.post('/api/publish/github', async (req, res) => {
   try {

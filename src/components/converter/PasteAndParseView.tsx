@@ -12,7 +12,6 @@ import {
   Layers,
   FileCheck
 } from 'lucide-react';
-import { SAMPLE_BIOLOGY_2026_TEXT } from '../../data/sampleQuestionBank';
 import { ParsedPaperResult } from '../../utils/questionParser';
 import { ThreeDExamIllustration } from '../common/ThreeDIllustrations';
 
@@ -38,16 +37,6 @@ export const PasteAndParseView: React.FC<PasteAndParseViewProps> = ({
   onNavigateToJson,
 }) => {
   const [inputMode, setInputMode] = useState<'combined' | 'split'>('combined');
-
-  const handleLoadSample = () => {
-    setRawCombinedText(SAMPLE_BIOLOGY_2026_TEXT);
-    setRawAnswersText('');
-    setInputMode('combined');
-    // Trigger parse
-    setTimeout(() => {
-      onParse();
-    }, 50);
-  };
 
   const handleClear = () => {
     setRawCombinedText('');
@@ -75,15 +64,6 @@ export const PasteAndParseView: React.FC<PasteAndParseViewProps> = ({
 
           {/* Quick action buttons */}
           <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={handleLoadSample}
-              id="load-sample-btn"
-              className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold text-xs flex items-center gap-1.5 btn-3d-indigo cursor-pointer transition-all"
-            >
-              <Zap className="w-3.5 h-3.5 fill-amber-300 text-amber-300" />
-              <span>Load 70-MCQ Sample</span>
-            </button>
-
             {(rawCombinedText || rawAnswersText) && (
               <button
                 onClick={handleClear}
@@ -154,7 +134,7 @@ export const PasteAndParseView: React.FC<PasteAndParseViewProps> = ({
             onChange={(e) => {
               setRawCombinedText(e.target.value);
             }}
-            placeholder={`Paste raw question paper with sections and answers here...\n\nExample:\nखण्ड–अ : वस्तुनिष्ठ प्रश्न — 70 MCQ\n\n1. यदि किसी व्यक्ति का रुधिर वर्ग AB है तो उसका जीनोटाइप क्या होगा?\n(A) Iᴬi (B) Iᴮi (C) ii (D) IᴬIᴮ\n...\nFormat of answers\n| प्रश्न सं. | सही उत्तर | संक्षिप्त व्याख्या |\n| 1 | (D) IᴬIᴮ | AB रक्त समूह सह-प्रभाविता दर्शाता है |`}
+            placeholder={`Paste raw question paper with any number of questions (MCQs, Short & Long questions) and answer tables here...\n\nExample:\nखण्ड–अ : वस्तुनिष्ठ प्रश्न\n\n1. भारत के प्रथम राष्ट्रपति कौन थे?\n(A) डॉ. राजेन्द्र प्रसाद (B) डॉ. एस. राधाकृष्णन (C) पं. जवाहरलाल नेहरू (D) सरदार पटेल\n\n...\n\nFormat of answers (optional):\n| प्रश्न सं. | सही उत्तर | संक्षिप्त व्याख्या |\n| 1 | (A) डॉ. राजेन्द्र प्रसाद | भारत के प्रथम राष्ट्रपति थे |`}
             rows={14}
             className="w-full p-4 rounded-2xl bg-slate-50/80 border border-slate-200 text-slate-900 font-mono text-xs focus:ring-2 focus:ring-indigo-600 focus:bg-white focus:outline-none leading-relaxed transition-all resize-y shadow-inner"
           />
@@ -186,7 +166,7 @@ export const PasteAndParseView: React.FC<PasteAndParseViewProps> = ({
             <textarea
               value={rawCombinedText}
               onChange={(e) => setRawCombinedText(e.target.value)}
-              placeholder="Paste Question 1..70 and subjective questions here..."
+              placeholder="Paste questions (MCQs with options A,B,C,D or क,ख,ग,घ, Short, Long questions) here..."
               rows={12}
               className="w-full p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 font-mono text-xs focus:ring-2 focus:ring-indigo-600 focus:bg-white focus:outline-none leading-relaxed shadow-inner"
             />

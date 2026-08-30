@@ -36,7 +36,7 @@ import { parseExamContent, ParsedPaperResult, ParsedQuestion } from './utils/que
 import { SAMPLE_BIOLOGY_2026_TEXT } from './data/sampleQuestionBank';
 import { INITIAL_PAPERS } from './data/initialData';
 import { QuestionPaper } from './types';
-import { getSubjectDisplayName } from './data/subjects';
+import { ALL_SUBJECTS, getSubjectDisplayName } from './data/subjects';
 
 // Syllabus Engine Components & Parser
 import { SyllabusMetaHeader } from './components/syllabus/SyllabusMetaHeader';
@@ -104,7 +104,7 @@ export default function App() {
   const [year, setYear] = useState<number>(2026);
   const [set, setSet] = useState<string>('Set A');
 
-  const [rawCombinedText, setRawCombinedText] = useState<string>(SAMPLE_BIOLOGY_2026_TEXT);
+  const [rawCombinedText, setRawCombinedText] = useState<string>('');
   const [rawAnswersText, setRawAnswersText] = useState<string>('');
 
   const cleanSubjectCode = subjectId.replace(/[^a-z0-9]/gi, '').toLowerCase();
@@ -115,7 +115,7 @@ export default function App() {
   const [customTargetFilename, setCustomTargetFilename] = useState<string>(targetFilename);
   const [branch, setBranch] = useState<string>('main');
   const [commitMessage, setCommitMessage] = useState<string>(
-    `feat: Add Class 12 Biology ${year} ${set} Question Bank (70 MCQs + Subjective)`
+    `feat: Add Class 12 ${getSubjectDisplayName(subjectId)} ${year} ${set} Question Bank`
   );
 
   useEffect(() => {
@@ -125,21 +125,9 @@ export default function App() {
     setCommitMessage(`feat: Add ${className} ${subjectDisplayName} ${year} ${set} Question Bank`);
   }, [classId, subjectId, year, set, targetFilename]);
 
-  const [parsedResult, setParsedResult] = useState<ParsedPaperResult | null>(() => {
-    return parseExamContent(SAMPLE_BIOLOGY_2026_TEXT, '', {
-      classId: 'class-12',
-      className: 'Class 12',
-      subjectId: 'biology',
-      subjectName: 'Biology (जीव विज्ञान)',
-      board: 'Bihar Board (BSEB)',
-      year: 2026,
-      set: 'Set A',
-    });
-  });
+  const [parsedResult, setParsedResult] = useState<ParsedPaperResult | null>(null);
 
-  const [savedPapers, setSavedPapers] = useState<QuestionPaper[]>(() => {
-    return INITIAL_PAPERS.filter((p) => p.questions && p.questions.length > 0);
-  });
+  const [savedPapers, setSavedPapers] = useState<QuestionPaper[]>([]);
 
   const [pushHistory, setPushHistory] = useState<
     Array<{
@@ -151,29 +139,12 @@ export default function App() {
       questionsCount: number;
       title: string;
     }>
-  >([
-    {
-      id: 'init-push-1',
-      filename: 'data/papers/class12_biology_2026_set_a.json',
-      commitSha: '7f9c2d1',
-      message: 'feat: Add Class 12 Biology 2026 Set A 70-MCQ Question Bank',
-      timestamp: new Date(Date.now() - 3600000).toISOString(),
-      questionsCount: 96,
-      title: 'Class 12 Biology (जीव विज्ञान) 2026 Set A (Bihar Board)',
-    },
-  ]);
+  >([]);
 
   const handleParse = () => {
     const className = classId === 'class-12' ? 'Class 12' : classId === 'class-10' ? 'Class 10' : classId;
-    const subjectNames: Record<string, string> = {
-      biology: 'Biology (जीव विज्ञान)',
-      chemistry: 'Chemistry (रसायन विज्ञान)',
-      physics: 'Physics (भौतिक विज्ञान)',
-      mathematics: 'Mathematics (गणित)',
-      hindi: 'Hindi (हिंदी)',
-      english: 'English (अंग्रेज़ी)',
-    };
-    const subjectName = subjectNames[subjectId] || subjectId;
+    const matchedSub = ALL_SUBJECTS.find((s) => s.id === subjectId);
+    const subjectName = matchedSub ? matchedSub.name : getSubjectDisplayName(subjectId);
 
     const result = parseExamContent(rawCombinedText, rawAnswersText, {
       classId,
@@ -184,8 +155,25 @@ export default function App() {
       year,
       set,
     });
+
+    if (result.subjectId && result.subjectId !== subjectId) {
+      setSubjectId(result.subjectId);
+    }
+
     setParsedResult(result);
   };
+
+  // Auto re-parse on input text or metadata changes so JSON Generator & Review tabs are always fresh
+  useEffect(() => {
+    if (!rawCombinedText.trim()) {
+      setParsedResult(null);
+      return;
+    }
+    const timer = setTimeout(() => {
+      handleParse();
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [rawCombinedText, rawAnswersText, classId, subjectId, board, year, set]);
 
   const handleUpdateQuestion = (updatedQ: ParsedQuestion) => {
     if (!parsedResult) return;
@@ -411,7 +399,7 @@ export default function App() {
   const [sAcademicYear, setSAcademicYear] = useState<string>('2025-2026');
   const [sStream, setSStream] = useState<string>('Science (PCB / PCM)');
 
-  const [rawSyllabusText, setRawSyllabusText] = useState<string>(SAMPLE_BIOLOGY_SYLLABUS_TEXT);
+  const [rawSyllabusText, setRawSyllabusText] = useState<string>('');
 
   const cleanSSubject = sSubjectId.replace(/[^a-z0-9]/gi, '').toLowerCase();
   const cleanSClass = sClassId.replace(/[^a-z0-9]/gi, '').toLowerCase();
@@ -421,81 +409,21 @@ export default function App() {
   const [customSyllabusFilename, setCustomSyllabusFilename] = useState<string>(syllabusTargetFilename);
   const [sBranch, setSBranch] = useState<string>('main');
   const [sCommitMessage, setSCommitMessage] = useState<string>(
-    `feat: Add Class 12 Biology Complete Syllabus & Chapter Tree (${sAcademicYear})`
+    `feat: Add Class 12 ${getSubjectDisplayName(sSubjectId)} Complete Syllabus & Chapter Tree (${sAcademicYear})`
   );
 
   useEffect(() => {
     setCustomSyllabusFilename(syllabusTargetFilename);
-    const subName = sSubjectId === 'biology' ? 'Biology' : sSubjectId.toUpperCase();
+    const subName = getSubjectDisplayName(sSubjectId);
     const clsName = sClassId === 'class-12' ? 'Class 12' : sClassId.toUpperCase();
     setSCommitMessage(`feat: Add ${clsName} ${subName} Complete Syllabus (${sAcademicYear})`);
   }, [sClassId, sSubjectId, sAcademicYear, syllabusTargetFilename]);
 
   // Parsed Syllabus State
-  const [parsedSyllabusResult, setParsedSyllabusResult] = useState<ParsedSyllabusResult | null>(() => {
-    return parseSyllabusContent(SAMPLE_BIOLOGY_SYLLABUS_TEXT, {
-      classId: 'class-12',
-      className: 'Class 12',
-      subjectId: 'biology',
-      subjectName: 'Biology (जीव विज्ञान)',
-      board: 'Bihar Board (BSEB)',
-      academicYear: '2025-2026',
-      stream: 'Science (PCB / PCM)',
-      totalMarks: 70,
-    });
-  });
+  const [parsedSyllabusResult, setParsedSyllabusResult] = useState<ParsedSyllabusResult | null>(null);
 
   // Saved Syllabi List
-  const [savedSyllabi, setSavedSyllabi] = useState<SavedSyllabusItem[]>([
-    {
-      id: 'syl-bio-12-2026',
-      title: 'Class 12 Biology (जीव विज्ञान) Curriculum (16 Chapters)',
-      classId: 'class-12',
-      className: 'Class 12',
-      subjectId: 'biology',
-      subjectName: 'Biology (जीव विज्ञान)',
-      board: 'Bihar Board (BSEB) & NCERT',
-      academicYear: '2025-2026',
-      stream: 'Science (PCB)',
-      totalChapters: 16,
-      totalTopics: 68,
-      totalMarks: 70,
-      githubPath: 'data/syllabus/class12_biology_syllabus_20252026.json',
-      lastUpdated: new Date(Date.now() - 7200000).toISOString(),
-    },
-    {
-      id: 'syl-phy-12-2026',
-      title: 'Class 12 Physics (भौतिक विज्ञान) Complete Curriculum',
-      classId: 'class-12',
-      className: 'Class 12',
-      subjectId: 'physics',
-      subjectName: 'Physics (भौतिक विज्ञान)',
-      board: 'Bihar Board (BSEB) & CBSE',
-      academicYear: '2025-2026',
-      stream: 'Science (PCM / PCB)',
-      totalChapters: 14,
-      totalTopics: 56,
-      totalMarks: 70,
-      githubPath: 'data/syllabus/class12_physics_syllabus_20252026.json',
-      lastUpdated: new Date(Date.now() - 14400000).toISOString(),
-    },
-    {
-      id: 'syl-sci-10-2026',
-      title: 'Class 10 General Science (विज्ञान) Complete Syllabus',
-      classId: 'class-10',
-      className: 'Class 10',
-      subjectId: 'science',
-      subjectName: 'Science (विज्ञान)',
-      board: 'Bihar Board (BSEB)',
-      academicYear: '2025-2026',
-      stream: 'General',
-      totalChapters: 16,
-      totalTopics: 64,
-      totalMarks: 80,
-      githubPath: 'data/syllabus/class10_science_syllabus_20252026.json',
-      lastUpdated: new Date(Date.now() - 86400000).toISOString(),
-    },
-  ]);
+  const [savedSyllabi, setSavedSyllabi] = useState<SavedSyllabusItem[]>([]);
 
   const [syllabusPushHistory, setSyllabusPushHistory] = useState<
     Array<{
@@ -507,17 +435,7 @@ export default function App() {
       chaptersCount: number;
       title: string;
     }>
-  >([
-    {
-      id: 'init-s-push-1',
-      filename: 'data/syllabus/class12_biology_syllabus_20252026.json',
-      commitSha: '9b3e1a4',
-      message: 'feat: Add Class 12 Biology Complete Syllabus & Chapter Tree',
-      timestamp: new Date(Date.now() - 7200000).toISOString(),
-      chaptersCount: 16,
-      title: 'Class 12 Biology (जीव विज्ञान) Curriculum (2025-2026)',
-    },
-  ]);
+  >([]);
 
   const handleParseSyllabus = () => {
     const className = sClassId === 'class-12' ? 'Class 12' : sClassId === 'class-10' ? 'Class 10' : sClassId;

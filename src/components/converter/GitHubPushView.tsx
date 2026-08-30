@@ -27,6 +27,7 @@ import {
   ShieldAlert
 } from 'lucide-react';
 import { ParsedPaperResult } from '../../utils/questionParser';
+import { FolderPathSelector } from '../common/FolderPathSelector';
 
 interface GitHubPushViewProps {
   parsedResult: ParsedPaperResult;
@@ -655,18 +656,17 @@ export const GitHubPushView: React.FC<GitHubPushViewProps> = ({
 
         {/* Form Inputs: File Path & Commit Message */}
         <div className="space-y-3 pt-2 border-t border-slate-100 text-xs">
-          {/* Target File Path */}
-          <div>
-            <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center gap-1">
-              <FileCode2 className="w-3.5 h-3.5 text-indigo-600" /> Target JSON File Path in Repo
-            </label>
-            <input
-              type="text"
-              value={targetFilename}
-              onChange={(e) => setTargetFilename(e.target.value)}
-              className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono font-bold focus:ring-2 focus:ring-slate-900 focus:outline-none"
-            />
-          </div>
+          {/* Target File Path with Folder Selector */}
+          <FolderPathSelector
+            targetPath={targetFilename}
+            onChangeTargetPath={setTargetFilename}
+            githubToken={githubToken}
+            repoOwner={repoOwner}
+            repoName={repoName}
+            branch={branch}
+            type="paper"
+            label="Target JSON File Path in Repo"
+          />
 
           {/* Commit Message */}
           <div>

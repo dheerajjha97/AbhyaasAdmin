@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { FolderPathSelector } from '../common/FolderPathSelector';
 import { QuestionPaper, PaperStatus } from '../../types';
 import {
   FileText,
@@ -25,6 +26,10 @@ import {
 } from 'lucide-react';
 
 export const PapersList: React.FC = () => {
+  const ghToken = typeof window !== 'undefined' ? (localStorage.getItem('abhyaas_gh_token') || '') : '';
+  const ghOwner = typeof window !== 'undefined' ? (localStorage.getItem('abhyaas_gh_owner') || '') : '';
+  const ghRepo = typeof window !== 'undefined' ? (localStorage.getItem('abhyaas_gh_repo') || '') : '';
+
   const {
     papers,
     classes,
@@ -517,19 +522,17 @@ export const PapersList: React.FC = () => {
             )}
 
             {/* Target File & Commit details */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1">
-                  GitHub File Path
-                </label>
-                <input
-                  type="text"
-                  value={targetFilename}
-                  onChange={(e) => setTargetFilename(e.target.value)}
-                  placeholder="data/papers/file.json"
-                  className="w-full h-9 px-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-mono focus:ring-2 focus:ring-slate-900 focus:outline-none"
-                />
-              </div>
+            <div className="space-y-2 pt-1">
+              <FolderPathSelector
+                targetPath={targetFilename}
+                onChangeTargetPath={setTargetFilename}
+                githubToken={ghToken}
+                repoOwner={ghOwner}
+                repoName={ghRepo}
+                branch="main"
+                type="paper"
+                label="GitHub File Path"
+              />
 
               <div>
                 <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1">

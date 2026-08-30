@@ -22,6 +22,7 @@ import {
   List
 } from 'lucide-react';
 import { ParsedSyllabusResult } from '../../utils/syllabusParser';
+import { FolderPathSelector } from '../common/FolderPathSelector';
 
 interface GitHubPushSyllabusViewProps {
   parsedResult: ParsedSyllabusResult;
@@ -387,16 +388,16 @@ export const GitHubPushSyllabusView: React.FC<GitHubPushSyllabusViewProps> = ({
           </div>
 
           {/* Target File Path in Repo */}
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
-              <FileCode2 className="w-3.5 h-3.5 text-slate-500" /> Target File Path in Repo
-            </label>
-            <input
-              type="text"
-              value={targetFilename}
-              onChange={(e) => setTargetFilename(e.target.value)}
-              placeholder="data/syllabus/class12_biology_syllabus_2026.json"
-              className="w-full h-9 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono text-slate-800 focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+          <div className="space-y-1 md:col-span-2">
+            <FolderPathSelector
+              targetPath={targetFilename}
+              onChangeTargetPath={setTargetFilename}
+              githubToken={githubToken}
+              repoOwner={repoOwner}
+              repoName={repoName}
+              branch={branch}
+              type="syllabus"
+              label="Target File Path in Repo"
             />
           </div>
 

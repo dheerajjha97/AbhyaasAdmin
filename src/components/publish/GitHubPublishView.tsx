@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { FolderPathSelector } from '../common/FolderPathSelector';
 import {
   Send,
   CheckCircle2,
@@ -19,6 +20,10 @@ import {
 } from 'lucide-react';
 
 export const GitHubPublishView: React.FC = () => {
+  const ghToken = typeof window !== 'undefined' ? (localStorage.getItem('abhyaas_gh_token') || '') : '';
+  const ghOwner = typeof window !== 'undefined' ? (localStorage.getItem('abhyaas_gh_owner') || '') : '';
+  const ghRepo = typeof window !== 'undefined' ? (localStorage.getItem('abhyaas_gh_repo') || '') : '';
+
   const {
     papers,
     chapters,
@@ -278,19 +283,17 @@ export const GitHubPublishView: React.FC = () => {
             )}
 
             {/* GitHub File & Branch */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1">
-                  Target GitHub File Path
-                </label>
-                <input
-                  type="text"
-                  value={targetFilename}
-                  onChange={(e) => setTargetFilename(e.target.value)}
-                  placeholder="data/papers/file.json"
-                  className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-mono focus:ring-2 focus:ring-slate-900 focus:outline-none"
-                />
-              </div>
+            <div className="space-y-2">
+              <FolderPathSelector
+                targetPath={targetFilename}
+                onChangeTargetPath={setTargetFilename}
+                githubToken={ghToken}
+                repoOwner={ghOwner}
+                repoName={ghRepo}
+                branch={targetBranch}
+                type="paper"
+                label="Target GitHub File Path"
+              />
 
               <div>
                 <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1">

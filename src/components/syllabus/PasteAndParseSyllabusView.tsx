@@ -14,11 +14,7 @@ import {
   Info,
   Trash2
 } from 'lucide-react';
-import {
-  SAMPLE_BIOLOGY_SYLLABUS_TEXT,
-  SAMPLE_PHYSICS_SYLLABUS_TEXT,
-  ParsedSyllabusResult
-} from '../../utils/syllabusParser';
+import { ParsedSyllabusResult } from '../../utils/syllabusParser';
 import { ThreeDSyllabusIllustration } from '../common/ThreeDIllustrations';
 
 interface PasteAndParseSyllabusViewProps {
@@ -39,14 +35,6 @@ export const PasteAndParseSyllabusView: React.FC<PasteAndParseSyllabusViewProps>
   onNavigateToJson,
 }) => {
   const [copiedSample, setCopiedSample] = useState(false);
-
-  const handleLoadSample = (type: 'biology' | 'physics') => {
-    if (type === 'biology') {
-      setRawSyllabusText(SAMPLE_BIOLOGY_SYLLABUS_TEXT);
-    } else {
-      setRawSyllabusText(SAMPLE_PHYSICS_SYLLABUS_TEXT);
-    }
-  };
 
   const handleClear = () => {
     setRawSyllabusText('');
@@ -71,24 +59,6 @@ export const PasteAndParseSyllabusView: React.FC<PasteAndParseSyllabusViewProps>
               Paste your curriculum outline with Units, Chapters, Topics, and Marks weightage. Our AI parser extracts structured trees in bilingual format.
             </p>
           </div>
-        </div>
-
-        {/* Quick Sample Action Buttons */}
-        <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
-          <button
-            onClick={() => handleLoadSample('biology')}
-            className="flex-1 sm:flex-none px-3 py-2 rounded-xl bg-white hover:bg-emerald-50 text-emerald-900 font-bold text-xs btn-3d-white flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-          >
-            <BookOpen className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Bio (16 Ch)</span>
-          </button>
-          <button
-            onClick={() => handleLoadSample('physics')}
-            className="flex-1 sm:flex-none px-3 py-2 rounded-xl bg-white hover:bg-emerald-50 text-emerald-900 font-bold text-xs btn-3d-white flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-          >
-            <Zap className="w-3.5 h-3.5 text-amber-500" />
-            <span>Physics (9 Ch)</span>
-          </button>
         </div>
       </div>
 

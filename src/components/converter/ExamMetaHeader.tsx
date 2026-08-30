@@ -164,22 +164,34 @@ export const ExamMetaHeader: React.FC<ExamMetaHeaderProps> = ({
           </select>
         </div>
 
-        {/* Set */}
+        {/* Set (Manual Typing + Datalist) */}
         <div className="bg-slate-50/80 p-2 rounded-2xl border border-slate-200">
-          <label className="block text-[10px] font-black text-indigo-900 uppercase tracking-wider mb-1 flex items-center gap-1">
-            <Layers className="w-3.5 h-3.5 text-indigo-600" /> Paper Set
+          <label className="block text-[10px] font-black text-indigo-900 uppercase tracking-wider mb-1 flex items-center justify-between">
+            <span className="flex items-center gap-1">
+              <Layers className="w-3.5 h-3.5 text-indigo-600" /> Paper Set
+            </span>
+            <span className="text-[9px] text-indigo-500 font-semibold lowercase">Type or select</span>
           </label>
-          <select
-            value={set}
-            onChange={(e) => setSet(e.target.value)}
-            className="w-full h-9 px-2 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs font-bold focus:ring-2 focus:ring-indigo-600 focus:outline-none cursor-pointer font-mono shadow-2xs"
-          >
-            {setOptions.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
+          <div className="relative">
+            <input
+              type="text"
+              value={set}
+              onChange={(e) => setSet(e.target.value)}
+              placeholder="e.g. Set A, Set B, Main..."
+              list="paper-set-list"
+              className="w-full h-9 px-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs font-bold focus:ring-2 focus:ring-indigo-600 focus:outline-none font-mono shadow-2xs"
+            />
+            <datalist id="paper-set-list">
+              <option value="Set A" />
+              <option value="Set B" />
+              <option value="Set C" />
+              <option value="Set D" />
+              <option value="Set E" />
+              <option value="Main Paper" />
+              <option value="Model Paper 1" />
+              <option value="Compartment Set" />
+            </datalist>
+          </div>
         </div>
       </div>
     </div>

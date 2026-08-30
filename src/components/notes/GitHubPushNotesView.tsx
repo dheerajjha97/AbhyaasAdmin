@@ -20,6 +20,7 @@ import {
   FileText
 } from 'lucide-react';
 import { ParsedNoteResult } from '../../utils/notesParser';
+import { FolderPathSelector } from '../common/FolderPathSelector';
 
 interface GitHubPushNotesViewProps {
   parsedNotes: ParsedNoteResult;
@@ -385,16 +386,16 @@ export const GitHubPushNotesView: React.FC<GitHubPushNotesViewProps> = ({
           </div>
 
           {/* Target File Path in Repo */}
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
-              <FileCode2 className="w-3.5 h-3.5 text-slate-500" /> Target File Path in Repo
-            </label>
-            <input
-              type="text"
-              value={targetFilename}
-              onChange={(e) => setTargetFilename(e.target.value)}
-              placeholder="data/notes/class12_biology_ch1_notes.json"
-              className="w-full h-9 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono text-slate-800 focus:bg-white focus:ring-2 focus:ring-amber-500 focus:outline-none"
+          <div className="space-y-1 md:col-span-2">
+            <FolderPathSelector
+              targetPath={targetFilename}
+              onChangeTargetPath={setTargetFilename}
+              githubToken={githubToken}
+              repoOwner={repoOwner}
+              repoName={repoName}
+              branch={branch}
+              type="notes"
+              label="Target File Path in Repo"
             />
           </div>
 

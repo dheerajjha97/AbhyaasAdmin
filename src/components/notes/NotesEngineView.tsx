@@ -51,32 +51,19 @@ export const NotesEngineView: React.FC<NotesEngineViewProps> = ({
   // Metadata State
   const [classId, setClassId] = useState('class-12');
   const [subjectId, setSubjectId] = useState('biology');
-  const [chapterNumber, setChapterNumber] = useState(3);
-  const [chapterTitle, setChapterTitle] = useState('Human Reproduction');
-  const [chapterTitleHindi, setChapterTitleHindi] = useState('मानव जनन');
+  const [chapterNumber, setChapterNumber] = useState(1);
+  const [chapterTitle, setChapterTitle] = useState('');
+  const [chapterTitleHindi, setChapterTitleHindi] = useState('');
   const [board, setBoard] = useState('Bihar Board (BSEB)');
   const [academicYear, setAcademicYear] = useState('2025-2026');
   const [noteType, setNoteType] = useState<NoteType>('comprehensive');
 
   // Raw & Parsed Notes State
-  const [rawNotesText, setRawNotesText] = useState(SAMPLE_BIOLOGY_NOTES_TEXT.trim());
+  const [rawNotesText, setRawNotesText] = useState('');
   const [isParsing, setIsParsing] = useState(false);
 
   // Initial Parsed result
-  const [parsedNotes, setParsedNotes] = useState<ParsedNoteResult | null>(() => {
-    return parseNotesContent(SAMPLE_BIOLOGY_NOTES_TEXT.trim(), {
-      classId: 'class-12',
-      className: 'Class 12',
-      subjectId: 'biology',
-      subjectName: 'Biology',
-      chapterNumber: 3,
-      chapterTitle: 'Human Reproduction',
-      chapterTitleHindi: 'मानव जनन',
-      board: 'Bihar Board (BSEB)',
-      academicYear: '2025-2026',
-      noteType: 'comprehensive',
-    });
-  });
+  const [parsedNotes, setParsedNotes] = useState<ParsedNoteResult | null>(null);
 
   // Target filename in GitHub
   const targetFilename = `data/notes/${classId.replace('-', '')}_${subjectId}_chap${chapterNumber}_notes.json`;
@@ -97,36 +84,8 @@ export const NotesEngineView: React.FC<NotesEngineViewProps> = ({
     }>
   >([]);
 
-  // Preloaded Saved Notes Library
-  const [savedNotes, setSavedNotes] = useState<ParsedNoteResult[]>(() => {
-    const bioNote = parseNotesContent(SAMPLE_BIOLOGY_NOTES_TEXT.trim(), {
-      classId: 'class-12',
-      className: 'Class 12',
-      subjectId: 'biology',
-      subjectName: 'Biology',
-      chapterNumber: 3,
-      chapterTitle: 'Human Reproduction',
-      chapterTitleHindi: 'मानव जनन',
-      board: 'Bihar Board (BSEB)',
-      academicYear: '2025-2026',
-      noteType: 'comprehensive',
-    });
-
-    const phyNote = parseNotesContent(SAMPLE_PHYSICS_NOTES_TEXT.trim(), {
-      classId: 'class-12',
-      className: 'Class 12',
-      subjectId: 'physics',
-      subjectName: 'Physics',
-      chapterNumber: 1,
-      chapterTitle: 'Electrostatics & Gauss Law',
-      chapterTitleHindi: 'स्थिर वैद्युतिकी एवं गाउस का नियम',
-      board: 'Bihar Board (BSEB)',
-      academicYear: '2025-2026',
-      noteType: 'formula_sheet',
-    });
-
-    return [bioNote, phyNote];
-  });
+  // Saved Notes Library
+  const [savedNotes, setSavedNotes] = useState<ParsedNoteResult[]>([]);
 
   // Handle Parse Trigger
   const handleParseNotes = () => {
