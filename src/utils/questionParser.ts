@@ -53,63 +53,71 @@ export interface ParsedPaperResult {
 }
 
 /**
- * Helper to auto-detect subject from raw text content (bilingual Hindi/English)
+ * Helper to auto-detect subject from raw text content (bilingual Hindi/English).
+ * Only checks header lines / explicit subject tags to avoid false positives from question body text.
  */
 export function detectSubjectFromText(text: string): { id: string; name: string } | null {
-  const lower = text.toLowerCase();
+  if (!text) return null;
 
-  if (lower.includes('राजनीति') || lower.includes('political science') || lower.includes('pol science') || lower.includes('pol. science') || lower.includes('राज्यशास्त्र')) {
+  // Only scan first 600 characters or lines that explicitly look like subject headers
+  const headerSample = text.slice(0, 600).toLowerCase();
+
+  const explicitSubjectPattern = /(?:subject|विषय|paper|प्रश्न\s*पत्र|sub)\s*[:\-\=–—\s]+([^\n\r]+)/i;
+  const headerMatch = text.slice(0, 1000).match(explicitSubjectPattern);
+  const targetToMatch = (headerMatch ? headerMatch[1].toLowerCase() + ' ' : '') + headerSample;
+
+  if (targetToMatch.includes('राजनीति') || targetToMatch.includes('political science') || targetToMatch.includes('pol science') || targetToMatch.includes('राज्यशास्त्र')) {
     return { id: 'pol-science', name: 'Political Science (राजनीति विज्ञान)' };
   }
-  if (lower.includes('इतिहास') || lower.includes('history')) {
+  if (targetToMatch.includes('इतिहास') || targetToMatch.includes('history')) {
     return { id: 'history', name: 'History (इतिहास)' };
   }
-  if (lower.includes('भूगोल') || lower.includes('geography')) {
+  if (targetToMatch.includes('भूगोल') || targetToMatch.includes('geography')) {
     return { id: 'geography', name: 'Geography (भूगोल)' };
   }
-  if (lower.includes('समाजशास्त्र') || lower.includes('sociology')) {
+  if (targetToMatch.includes('समाजशास्त्र') || targetToMatch.includes('sociology')) {
     return { id: 'sociology', name: 'Sociology (समाजशास्त्र)' };
   }
-  if (lower.includes('अर्थशास्त्र') || lower.includes('economics')) {
+  if (targetToMatch.includes('अर्थशास्त्र') || targetToMatch.includes('economics')) {
     return { id: 'economics', name: 'Economics (अर्थशास्त्र)' };
   }
-  if (lower.includes('मनोविज्ञान') || lower.includes('psychology')) {
+  if (targetToMatch.includes('मनोविज्ञान') || targetToMatch.includes('psychology')) {
     return { id: 'psychology', name: 'Psychology (मनोविज्ञान)' };
   }
-  if (lower.includes('गृह विज्ञान') || lower.includes('home science')) {
+  if (targetToMatch.includes('गृह विज्ञान') || targetToMatch.includes('home science')) {
     return { id: 'home-science', name: 'Home Science (गृह विज्ञान)' };
   }
-  if (lower.includes('दर्शनशास्त्र') || lower.includes('philosophy')) {
+  if (targetToMatch.includes('दर्शनशास्त्र') || targetToMatch.includes('philosophy')) {
     return { id: 'philosophy', name: 'Philosophy (दर्शनशास्त्र)' };
   }
-  if (lower.includes('जीव विज्ञान') || lower.includes('biology') || lower.includes('botany') || lower.includes('zoology')) {
+  if (targetToMatch.includes('जीव विज्ञान') || targetToMatch.includes('biology') || targetToMatch.includes('botany') || targetToMatch.includes('zoology')) {
     return { id: 'biology', name: 'Biology (जीव विज्ञान)' };
   }
-  if (lower.includes('रसायन') || lower.includes('chemistry')) {
+  if (targetToMatch.includes('रसायन') || targetToMatch.includes('chemistry')) {
     return { id: 'chemistry', name: 'Chemistry (रसायन विज्ञान)' };
   }
-  if (lower.includes('भौतिक') || lower.includes('physics')) {
+  if (targetToMatch.includes('भौतिक') || targetToMatch.includes('physics')) {
     return { id: 'physics', name: 'Physics (भौतिक विज्ञान)' };
   }
-  if (lower.includes('गणित') || lower.includes('math') || lower.includes('mathematics')) {
+  if (targetToMatch.includes('गणित') || targetToMatch.includes('math') || targetToMatch.includes('mathematics')) {
     return { id: 'mathematics', name: 'Mathematics (गणित)' };
   }
-  if (lower.includes('हिंदी') || lower.includes('हिन्दी') || lower.includes('hindi')) {
+  if (targetToMatch.includes('हिंदी') || targetToMatch.includes('हिन्दी') || targetToMatch.includes('hindi')) {
     return { id: 'hindi', name: 'Hindi (हिंदी)' };
   }
-  if (lower.includes('अंग्रेज़ी') || lower.includes('अंग्रेजी') || lower.includes('english')) {
+  if (targetToMatch.includes('अंग्रेज़ी') || targetToMatch.includes('अंग्रेजी') || targetToMatch.includes('english')) {
     return { id: 'english', name: 'English (अंग्रेज़ी)' };
   }
-  if (lower.includes('लेखाशास्त्र') || lower.includes('accountancy')) {
+  if (targetToMatch.includes('लेखाशास्त्र') || targetToMatch.includes('accountancy')) {
     return { id: 'accountancy', name: 'Accountancy (लेखाशास्त्र)' };
   }
-  if (lower.includes('व्यवसाय अध्ययन') || lower.includes('business studies')) {
+  if (targetToMatch.includes('व्यवसाय अध्ययन') || targetToMatch.includes('business studies')) {
     return { id: 'business-studies', name: 'Business Studies (व्यवसाय अध्ययन)' };
   }
-  if (lower.includes('उद्यमिता') || lower.includes('entrepreneurship') || lower.includes('eps')) {
+  if (targetToMatch.includes('उद्यमिता') || targetToMatch.includes('entrepreneurship') || targetToMatch.includes('eps')) {
     return { id: 'entrepreneurship', name: 'Entrepreneurship (उद्यमिता / EPS)' };
   }
-  if (lower.includes('कंप्यूटर') || lower.includes('computer science')) {
+  if (targetToMatch.includes('कंप्यूटर') || targetToMatch.includes('computer science')) {
     return { id: 'cs', name: 'Computer Science (कंप्यूटर विज्ञान)' };
   }
 
@@ -141,12 +149,13 @@ export function parseExamContent(
 
   const classId = meta?.classId || 'class-12';
   const className = meta?.className || 'Class 12';
-  const subjectId = detectedSubject ? detectedSubject.id : (meta?.subjectId || 'biology');
-  const subjectName = detectedSubject ? detectedSubject.name : (meta?.subjectName || 'Biology (जीव विज्ञान)');
+  // User's explicitly selected subject ALWAYS takes precedence over auto-detection
+  const subjectId = meta?.subjectId || (detectedSubject ? detectedSubject.id : 'biology');
+  const subjectName = meta?.subjectName || (detectedSubject ? detectedSubject.name : 'Biology (जीव विज्ञान)');
   const board = meta?.board || 'Bihar Board (BSEB)';
   const year = meta?.year || 2026;
   const set = meta?.set || 'Set A';
-  const title = meta?.title && !detectedSubject 
+  const title = meta?.title
     ? meta.title 
     : `${className} ${subjectName} ${year} ${set} (${board})`;
   const paperId = `${classId}_${subjectId}_${year}_${set.toLowerCase().replace(/[^a-z0-9]/g, '_')}`.replace(/_+/g, '_');

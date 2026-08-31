@@ -157,10 +157,6 @@ export default function App() {
       set,
     });
 
-    if (result.subjectId && result.subjectId !== subjectId) {
-      setSubjectId(result.subjectId);
-    }
-
     setParsedResult(result);
   };
 
@@ -456,13 +452,6 @@ export default function App() {
       stream: sStream,
       totalMarks: 70,
     });
-
-    if (result.subjectId && result.subjectId !== sSubjectId) {
-      setSSubjectId(result.subjectId);
-    }
-    if (result.classId && result.classId !== sClassId) {
-      setSClassId(result.classId);
-    }
 
     setParsedSyllabusResult(result);
     setSyllabusTab('review');
