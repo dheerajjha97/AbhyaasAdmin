@@ -126,8 +126,8 @@ export function detectSubjectFromText(text: string): { id: string; name: string 
 
 // Section headers patterns (handles खण्ड, खंड, भाग, Section, Part, Group)
 const secAPattern = /^(?:[#\*\-\s]*)(?:(?:खण्ड|खंड|भाग|Section|Part|Group)\s*[–—\-:'"\s]*[अaA]|वस्तुनिष्ठ\s*प्रश्न|Objective\s*Question|MCQ\b)/i;
-const secBPattern = /^(?:[#\*\-\s]*)(?:(?:खण्ड|खंड|भाग|Section|Part|Group)\s*[–—\-:'"\s]*[बbB]|लघु\s*उत्तरीय\s*प्रश्न|लघुउत्तरीय|Short\s*Answer|Short\s*Question)/i;
-const secCPattern = /^(?:[#\*\-\s]*)(?:(?:खण्ड|खंड|भाग|Section|Part|Group)\s*[–—\-:'"\s]*[सcC]|दीर्घ\s*उत्तरीय\s*प्रश्न|दीर्घउत्तरीय|Long\s*Answer|Long\s*Question)/i;
+const secBPattern = /^(?:[#\*\-\s]*)(?:(?:खण्ड|खंड|भाग|Section|Part|Group)\s*[–—\-:'"\s]*[बbB]|विषयनिष्ठ\s*प्रश्न|गैर\-वस्तुनिष्ठ|लघु\s*उत्तरीय|लघुउत्तरीय|Short\s*Answer|Short\s*Question|Subjective\s*Question)/i;
+const secCPattern = /^(?:[#\*\-\s]*)(?:(?:खण्ड|खंड|भाग|Section|Part|Group)\s*[–—\-:'"\s]*[सcCदdD]|दीर्घ\s*उत्तरीय|दीर्घउत्तरीय|Long\s*Answer|Long\s*Question|Essay\s*Type)/i;
 
 /**
  * Helper to determine if a line starts a new question.
@@ -218,15 +218,6 @@ export function parseExamContent(
       'उत्तर तालिका',
       'Format of answers',
       'खण्ड–अ : वस्तुनिष्ठ प्रश्न (उत्तर एवं व्याख्या)',
-      'खण्ड–अ : वस्तुनिष्ठ प्रश्न (उत्तर',
-      'उत्तर एवं व्याख्या',
-      'संपूर्ण विस्तृत मॉडल उत्तर',
-      'सम्पूर्ण विस्तृत मॉडल उत्तर',
-      'विस्तृत मॉडल उत्तर',
-      'मॉडल उत्तर',
-      'आदर्श उत्तर',
-      'MODEL ANSWER',
-      'Model Answer',
       '| प्रश्न सं. | सही उत्तर |',
       '| Q.No | Answer |',
       '| Q. No. |'
