@@ -220,6 +220,13 @@ export function parseExamContent(
       'खण्ड–अ : वस्तुनिष्ठ प्रश्न (उत्तर एवं व्याख्या)',
       'खण्ड–अ : वस्तुनिष्ठ प्रश्न (उत्तर',
       'उत्तर एवं व्याख्या',
+      'संपूर्ण विस्तृत मॉडल उत्तर',
+      'सम्पूर्ण विस्तृत मॉडल उत्तर',
+      'विस्तृत मॉडल उत्तर',
+      'मॉडल उत्तर',
+      'आदर्श उत्तर',
+      'MODEL ANSWER',
+      'Model Answer',
       '| प्रश्न सं. | सही उत्तर |',
       '| Q.No | Answer |',
       '| Q. No. |'
@@ -227,9 +234,11 @@ export function parseExamContent(
     for (const marker of splitMarkers) {
       if (text.includes(marker)) {
         const parts = text.split(marker);
-        qBlock = parts[0];
-        aBlock = marker + parts.slice(1).join(marker);
-        break;
+        if (parts[0].trim().length > 0) {
+          qBlock = parts[0];
+          aBlock = marker + parts.slice(1).join(marker);
+          break;
+        }
       }
     }
   }
@@ -445,7 +454,16 @@ export function parseExamContent(
 
       const saveCurrentSubj = () => {
         if (currentQNum !== null && currentLines.length > 0 && !targetMap[currentQNum]) {
-          targetMap[currentQNum] = currentLines.join('\n').trim();
+          let fullSubjText = currentLines.join('\n').trim();
+          // Remove leading question header/prompt if an inline answer marker exists
+          const ansMarkerRegex = /(?:^|\n)(?:उत्तर|Ans|Answer|आदर्श उत्तर|मॉडल उत्तर|Solution|सप्रसंग व्याख्या|व्याख्या)\s*[:\-\=–—\.\s]*/i;
+          if (ansMarkerRegex.test(fullSubjText)) {
+            const parts = fullSubjText.split(ansMarkerRegex);
+            if (parts.length > 1 && parts[parts.length - 1].trim()) {
+              fullSubjText = parts.slice(1).join('\n').trim();
+            }
+          }
+          targetMap[currentQNum] = fullSubjText;
         }
       };
 
@@ -810,21 +828,60 @@ function parseSubjectiveSection(
   let currentLines: string[] = [];
 
   const processSubjectiveChunk = (qNum: number, qLines: string[], seqIndex: number) => {
-    let questionText = qLines.join('\n').trim();
-    if (!questionText) return;
+    let rawChunk = qLines.join('\n').trim();
+    if (!rawChunk) return;
 
     // Remove instruction note if caught at end
-    if (questionText.includes('इन 20 प्रश्नों में से') || questionText.includes('दीर्घ उत्तरीय प्रश्न')) {
-      questionText = questionText.split(/इन \d+ प्रश्नों में से|दीर्घ उत्तरीय प्रश्न/)[0].trim();
+    if (rawChunk.includes('इन 20 प्रश्नों में से') || rawChunk.includes('दीर्घ उत्तरीय प्रश्न')) {
+      rawChunk = rawChunk.split(/इन \d+ प्रश्नों में से|दीर्घ उत्तरीय प्रश्न/)[0].trim();
+    }
+
+    let questionText = rawChunk;
+    let extractedInlineAns = '';
+
+    // Check line by line for an explicit subjective answer marker
+    let ansLineIndex = -1;
+    for (let i = 0; i < qLines.length; i++) {
+      const line = qLines[i].trim();
+      if (/^(?:उत्तर|Ans|Answer|आदर्श उत्तर|मॉडल उत्तर|Solution|सप्रसंग व्याख्या|व्याख्या)\s*[:\-\=–—\.\s]*/i.test(line)) {
+        ansLineIndex = i;
+        break;
+      }
+    }
+
+    if (ansLineIndex > 0) {
+      questionText = qLines.slice(0, ansLineIndex).join('\n').trim();
+      const rawAnsLines = qLines.slice(ansLineIndex).join('\n').trim();
+      extractedInlineAns = rawAnsLines.replace(/^(?:उत्तर|Ans|Answer|आदर्श उत्तर|मॉडल उत्तर|Solution|सप्रसंग व्याख्या|व्याख्या)\s*[:\-\=–—\.\s]*/i, '').trim();
+    } else if (ansLineIndex === 0 && qLines.length > 1) {
+      questionText = qLines[0].replace(/^(?:उत्तर|Ans|Answer|आदर्श उत्तर|मॉडल उत्तर|Solution|सप्रसंग व्याख्या|व्याख्या)\s*[:\-\=–—\.\s]*/i, '').trim();
+      extractedInlineAns = qLines.slice(1).join('\n').trim();
+    } else {
+      // Check if inline answer marker exists within a line e.g. "Q1. text... उत्तर: answer..."
+      const inlineMatch = rawChunk.match(/^(.*?)(?:\n|\s+)(?:उत्तर|Ans|Answer|आदर्श उत्तर|मॉडल उत्तर|Solution|सप्रसंग व्याख्या|व्याख्या)\s*[:\-\=–—\.\s]+([\s\S]*)$/i);
+      if (inlineMatch && inlineMatch[1].trim() && inlineMatch[2].trim()) {
+        questionText = inlineMatch[1].trim();
+        extractedInlineAns = inlineMatch[2].trim();
+      }
     }
 
     // Lookup model answer: check by questionNumber, or offset (e.g. 101 -> 1), or seqIndex + 1
-    const modelAns = specificAnswersMap[qNum] || 
-                     (qNum > 100 ? specificAnswersMap[qNum - 100] : undefined) ||
-                     specificAnswersMap[seqIndex + 1] ||
-                     (fallbackAnswersMap ? fallbackAnswersMap[qNum] : undefined) ||
-                     (fallbackAnswersMap && qNum > 100 ? fallbackAnswersMap[qNum - 100] : undefined) ||
-                     (fallbackAnswersMap ? fallbackAnswersMap[seqIndex + 1] : undefined);
+    const mapAns = specificAnswersMap[qNum] || 
+                   (qNum > 100 ? specificAnswersMap[qNum - 100] : undefined) ||
+                   specificAnswersMap[seqIndex + 1] ||
+                   (fallbackAnswersMap ? fallbackAnswersMap[qNum] : undefined) ||
+                   (fallbackAnswersMap && qNum > 100 ? fallbackAnswersMap[qNum - 100] : undefined) ||
+                   (fallbackAnswersMap ? fallbackAnswersMap[seqIndex + 1] : undefined);
+
+    let cleanMapAns = mapAns;
+    if (cleanMapAns) {
+      cleanMapAns = cleanMapAns.replace(/^(?:उत्तर|Ans|Answer|आदर्श उत्तर|मॉडल उत्तर|Solution|सप्रसंग व्याख्या|व्याख्या)\s*[:\-\=–—\.\s]*/i, '').trim();
+      if (cleanMapAns === rawChunk || mapAns === rawChunk) {
+        cleanMapAns = '';
+      }
+    }
+
+    const finalModelAns = cleanMapAns || extractedInlineAns || (mapAns ? mapAns.replace(/^(?:उत्तर|Ans|Answer|आदर्श उत्तर|मॉडल उत्तर|Solution|सप्रसंग व्याख्या|व्याख्या)\s*[:\-\=–—\.\s]*/i, '').trim() : undefined);
 
     questions.push({
       id: `q-${sectionId}-${qNum}`,
@@ -832,10 +889,10 @@ function parseSubjectiveSection(
       sectionName,
       questionNumber: qNum,
       type: sectionId === 'sec-b' ? 'short' : 'long',
-      text: questionText,
-      textHindi: questionText,
-      modelAnswer: modelAns,
-      explanationHindi: modelAns,
+      text: questionText || rawChunk,
+      textHindi: questionText || rawChunk,
+      modelAnswer: finalModelAns,
+      explanationHindi: finalModelAns,
       marks: marksPerQuestion
     });
   };
