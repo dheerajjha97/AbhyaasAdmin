@@ -309,12 +309,12 @@ export function parseExamContent(
       // 2. Line by line / Structured format
       const lines = textChunk.split('\n');
       let currentQNum: number | null = null;
-      let currentKey: 'A' | 'B' | 'C' | 'D' = 'A';
+      let currentKey: 'A' | 'B' | 'C' | 'D' | undefined = undefined;
       let currentOptText = '';
       let currentExpLines: string[] = [];
 
       const saveCurrentMCQAns = () => {
-        if (currentQNum !== null && !answersMap[currentQNum]) {
+        if (currentQNum !== null && currentKey && !answersMap[currentQNum]) {
           let exp = currentExpLines.join('\n').trim();
           if (!exp && currentOptText) {
             exp = `सही उत्तर (${currentKey}) ${currentOptText} है।`;
@@ -338,52 +338,81 @@ export function parseExamContent(
         if (qHeader) {
           saveCurrentMCQAns();
           currentQNum = qHeader.qNum;
-          currentKey = 'A';
+          currentKey = undefined;
           currentOptText = '';
           currentExpLines = [];
 
-          // Check if option key is on the same header line e.g. "1. (D) 1793" or "Q1. (a) कार्ल मार्क्स"
-          const optKeyMatch = qHeader.restText.match(/(?:(?:Ans|Answer|उत्तर)\s*[:\-\.]?\s*)?(?:\(|\[)?([A-Da-dक-घअ-द1-4])(?:\)|\]|\.|\-)\s*(.*)/i);
-          if (optKeyMatch) {
-            const rawKey = optKeyMatch[1];
-            currentKey = keyMap[rawKey] || 'A';
-            let optText = optKeyMatch[2] ? optKeyMatch[2].trim() : '';
+          // Check if explicit answer marker is on the same header line e.g. "1. Ans: (B) 1793"
+          const explicitAnsMatch = qHeader.restText.match(/(?:Ans|Answer|उत्तर|सही उत्तर|Correct Answer|Ans\.)\s*[:\-\=–—\.\s]*\s*(?:\(|\[)?([A-Da-dक-घअ-द1-4])(?:\)|\]|\-|\s|$)\s*(.*)/i);
+          if (explicitAnsMatch) {
+            const rawKey = explicitAnsMatch[1];
+            currentKey = keyMap[rawKey];
+            let optText = explicitAnsMatch[2] ? explicitAnsMatch[2].trim() : '';
 
-            if (/(?:व्याख्या|Explanation|कारण|विवरण|Explain)/i.test(optText)) {
-              const spl = optText.split(/(?:व्याख्या|Explanation|कारण|विवरण|Explain)\s*[:\-\=–—\.\s]*/i);
+            if (/(?:व्याख्या|Explanation|कारण|विवरण|Explain|स्पष्टीकरण)/i.test(optText)) {
+              const spl = optText.split(/(?:व्याख्या|Explanation|कारण|विवरण|Explain|स्पष्टीकरण)\s*[:\-\=–—\.\s]*/i);
               optText = spl[0].trim();
               if (spl[1]) currentExpLines.push(spl[1].trim());
             }
             currentOptText = optText;
+          } else {
+            // Check if restText is ONLY an answer key e.g. "(B)" or "(B) कारुणिक" (and NOT an options line)
+            const isMultiOptionLine = /(?:\(|\[)?[A-Da-dक-घअ-द1-4](?:\)|\]|\.|\-)\s*.*(?:\(|\[)?[B-Db-dक-घअ-द2-4](?:\)|\]|\.|\-)/.test(qHeader.restText);
+            if (!isMultiOptionLine) {
+              const singleKeyMatch = qHeader.restText.match(/^(?:\(|\[)?([A-Da-dक-घअ-द1-4])(?:\)|\]|\-)\s*(.*)/i);
+              if (singleKeyMatch) {
+                const rawKey = singleKeyMatch[1];
+                currentKey = keyMap[rawKey];
+                currentOptText = singleKeyMatch[2] ? singleKeyMatch[2].trim() : '';
+              }
+            }
           }
           continue;
         }
 
         if (currentQNum !== null) {
-          // Check if this line is an option key (e.g. if option key was on the next line)
-          if (!currentOptText) {
-            const optKeyMatch = trimmed.match(/^(?:(?:Ans|Answer|उत्तर)\s*[:\-\.]?\s*)?(?:\(|\[)?([A-Da-dक-घअ-द1-4])(?:\)|\]|\.|\-)\s*(.*)/i);
-            if (optKeyMatch) {
-              const rawKey = optKeyMatch[1];
-              currentKey = keyMap[rawKey] || 'A';
-              let optText = optKeyMatch[2] ? optKeyMatch[2].trim() : '';
-              if (/(?:व्याख्या|Explanation|कारण|विवरण|Explain)/i.test(optText)) {
-                const spl = optText.split(/(?:व्याख्या|Explanation|कारण|विवरण|Explain)\s*[:\-\=–—\.\s]*/i);
-                optText = spl[0].trim();
-                if (spl[1]) currentExpLines.push(spl[1].trim());
-              }
-              currentOptText = optText;
-              continue;
+          // Check if this line has an explicit answer marker e.g. "उत्तर: (B) कारुणिक" or "Ans: B"
+          const explicitAnsMatch = trimmed.match(/^(?:Ans|Answer|उत्तर|सही उत्तर|Correct Answer|Ans\.)\s*[:\-\=–—\.\s]*\s*(?:\(|\[)?([A-Da-dक-घअ-द1-4])(?:\)|\]|\-|\s|$)\s*(.*)/i);
+          if (explicitAnsMatch) {
+            const rawKey = explicitAnsMatch[1];
+            currentKey = keyMap[rawKey];
+            let optText = explicitAnsMatch[2] ? explicitAnsMatch[2].trim() : '';
+
+            if (/(?:व्याख्या|Explanation|कारण|विवरण|Explain|स्पष्टीकरण)/i.test(optText)) {
+              const spl = optText.split(/(?:व्याख्या|Explanation|कारण|विवरण|Explain|स्पष्टीकरण)\s*[:\-\=–—\.\s]*/i);
+              optText = spl[0].trim();
+              if (spl[1]) currentExpLines.push(spl[1].trim());
             }
+            currentOptText = optText;
+            currentExpLines.push(trimmed);
+            continue;
           }
 
-          // Check if this line starts with व्याख्या / Explanation
-          const expStartMatch = trimmed.match(/^(?:व्याख्या|Explanation|कारण|विवरण|Explain)\s*[:\-\=–—\.\s]*(.*)/i);
+          // Check if this line starts with व्याख्या / Explanation / स्पष्टीकरण
+          const expStartMatch = trimmed.match(/^(?:स्पष्टीकरण|व्याख्या|Explanation|कारण|विवरण|Explain)\s*[:\-\=–—\.\s]*(.*)/i);
           if (expStartMatch) {
             if (expStartMatch[1].trim()) {
               currentExpLines.push(expStartMatch[1].trim());
             }
-          } else {
+            continue;
+          }
+
+          // If currentKey is still not set and this line is NOT a multi-option line, check if it's a standalone answer key line
+          if (!currentKey) {
+            const isMultiOptionLine = /(?:\(|\[)?[A-Da-dक-घअ-द1-4](?:\)|\]|\.|\-)\s*.*(?:\(|\[)?[B-Db-dक-घअ-द2-4](?:\)|\]|\.|\-)/.test(trimmed);
+            if (!isMultiOptionLine) {
+              const singleKeyMatch = trimmed.match(/^(?:\(|\[)?([A-Da-dक-घअ-द1-4])(?:\)|\]|\-)\s*(.*)/i);
+              if (singleKeyMatch) {
+                const rawKey = singleKeyMatch[1];
+                currentKey = keyMap[rawKey];
+                currentOptText = singleKeyMatch[2] ? singleKeyMatch[2].trim() : '';
+                continue;
+              }
+            }
+          }
+
+          // Otherwise, if currentKey is already set, append line to explanation lines
+          if (currentKey) {
             currentExpLines.push(trimmed);
           }
         }
@@ -628,9 +657,17 @@ function parseMCQSection(
     const optLines: string[] = [];
     let foundFirstOption = false;
 
+    const explicitAnsCheck = /(?:Ans|Answer|उत्तर|certainly|सही उत्तर|Correct Answer|Ans\.)\s*[:\-\=–—\.\s]*\s*(?:\(|\[)?[A-Da-dक-घअ-द1-4](?:\)|\]|\-|\s|$)/i;
+    const expStartCheck = /^(?:स्पष्टीकरण|व्याख्या|Explanation|Reason|कारण|विवरण|Explain)\s*[:\-\=–—\.\s]*/i;
+
     for (let i = 0; i < bodyLines.length; i++) {
       const line = bodyLines[i].trim();
       if (!line) continue;
+
+      // Ignore explicit answer/explanation lines from options and question text
+      if (explicitAnsCheck.test(line) || expStartCheck.test(line)) {
+        continue;
+      }
 
       if (optPattern.test(line)) {
         foundFirstOption = true;
@@ -687,26 +724,32 @@ function parseMCQSection(
       }
     }
 
-    // Lookup Answer & Explanation
-    const ansInfo = answersMap[qNum];
-    let correctKey = ansInfo ? ansInfo.correctKey : undefined;
-    let explanation = ansInfo ? ansInfo.explanation : undefined;
-    let fullAnswer = ansInfo ? ansInfo.fullAnswer : undefined;
+    // Detect inline answer / explanation lines in bodyLines if present
+    const explicitAnsRegex = /(?:Ans|Answer|उत्तर|सही उत्तर|Correct Answer|Ans\.)\s*[:\-\=–—\.\s]*\s*(?:\(|\[)?([A-Da-dक-घअ-द1-4])(?:\)|\]|\-|\s|$)\s*(.*)/i;
+    const expStartRegex = /^(?:स्पष्टीकरण|व्याख्या|Explanation|Reason|कारण|विवरण|Explain)\s*[:\-\=–—\.\s]*(.*)/i;
+    const inlineAnsExpLines: string[] = [];
+    let inlineCorrectKey: 'A' | 'B' | 'C' | 'D' | undefined = undefined;
+    let inlineAnsText = '';
 
-    // Check inline answer inside body if still not found
-    if (!correctKey) {
-      const fullBody = bodyLines.join('\n');
-      const inlineMatch = fullBody.match(/(?:\(|\[|\s)(?:Ans|Answer|उत्तर|सही उत्तर|Ans\.)\s*[:\-\=–—\.\s]*\s*(?:\(|\[)?([A-Da-dक-घअ-द1-4])(?:\)|\]|\.|\s|$)/i);
-      if (inlineMatch) {
-        const rawKey = inlineMatch[1];
-        correctKey = keyMap[rawKey];
-        if (correctKey) {
-          fullAnswer = `(${correctKey})`;
-          explanation = `सही उत्तर (${correctKey}) है।`;
-          questionText = questionText.replace(/(?:\(|\[|\s)(?:Ans|Answer|उत्तर|सही उत्तर|Ans\.)\s*[:\-\=–—\.\s]*\s*(?:\(|\[)?[A-Da-dक-घअ-द1-4](?:\)|\]|\.|\s|$)/gi, '').trim();
-        }
+    for (const l of bodyLines) {
+      const trimmedLine = l.trim();
+      const aMatch = trimmedLine.match(explicitAnsRegex);
+      const eMatch = trimmedLine.match(expStartRegex);
+      if (aMatch) {
+        const rawKey = aMatch[1];
+        inlineCorrectKey = keyMap[rawKey];
+        inlineAnsText = aMatch[2] ? aMatch[2].trim() : '';
+        inlineAnsExpLines.push(trimmedLine);
+      } else if (eMatch || inlineAnsExpLines.length > 0) {
+        inlineAnsExpLines.push(trimmedLine);
       }
     }
+
+    // Lookup Answer & Explanation
+    const ansInfo = answersMap[qNum];
+    let correctKey = ansInfo ? ansInfo.correctKey : inlineCorrectKey;
+    let explanation = ansInfo ? ansInfo.explanation : (inlineAnsExpLines.length > 0 ? inlineAnsExpLines.join('\n').trim() : undefined);
+    let fullAnswer = ansInfo ? ansInfo.fullAnswer : (inlineCorrectKey ? (inlineAnsText ? `(${inlineCorrectKey}) ${inlineAnsText}` : `(${inlineCorrectKey})`) : undefined);
 
     questions.push({
       id: `q-mcq-${qNum}`,
