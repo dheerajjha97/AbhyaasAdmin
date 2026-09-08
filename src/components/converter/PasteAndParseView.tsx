@@ -10,10 +10,12 @@ import {
   HelpCircle,
   Code2,
   Layers,
-  FileCheck
+  FileCheck,
+  FileUp
 } from 'lucide-react';
 import { ParsedPaperResult } from '../../utils/questionParser';
 import { ThreeDExamIllustration } from '../common/ThreeDIllustrations';
+import { PdfUploadDropzone } from './PdfUploadDropzone';
 
 interface PasteAndParseViewProps {
   rawCombinedText: string;
@@ -24,6 +26,10 @@ interface PasteAndParseViewProps {
   onParse: () => void;
   onNavigateToReview: () => void;
   onNavigateToJson: () => void;
+  onPaperParsedFromPdf?: (result: ParsedPaperResult, rawText: string) => void;
+  classId?: string;
+  subjectId?: string;
+  board?: string;
 }
 
 export const PasteAndParseView: React.FC<PasteAndParseViewProps> = ({
@@ -35,12 +41,23 @@ export const PasteAndParseView: React.FC<PasteAndParseViewProps> = ({
   onParse,
   onNavigateToReview,
   onNavigateToJson,
+  onPaperParsedFromPdf,
+  classId = '12',
+  subjectId = 'physics',
+  board = 'CBSE',
 }) => {
-  const [inputMode, setInputMode] = useState<'combined' | 'split'>('combined');
+  const [inputMode, setInputMode] = useState<'pdf' | 'combined' | 'split'>('pdf');
 
   const handleClear = () => {
     setRawCombinedText('');
     setRawAnswersText('');
+  };
+
+  const handlePdfParsed = (result: ParsedPaperResult, rawText: string) => {
+    setRawCombinedText(rawText);
+    if (onPaperParsedFromPdf) {
+      onPaperParsedFromPdf(result, rawText);
+    }
   };
 
   return (
@@ -54,10 +71,10 @@ export const PasteAndParseView: React.FC<PasteAndParseViewProps> = ({
             </div>
             <div>
               <h2 className="text-base font-black text-slate-900 tracking-tight flex items-center gap-2">
-                <FileText className="w-5 h-5 text-indigo-600 sm:hidden" /> 1. Paste Question Paper & Answers
+                <FileText className="w-5 h-5 text-indigo-600 sm:hidden" /> 1. Question Paper & NCERT Answer Studio
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                Paste your raw Hindi/English questions, MCQs with (A)(B)(C)(D), and answer tables. The engine converts them into standard JSON.
+                Upload Question Paper PDF / Images to auto-generate step-wise NCERT solutions, or paste raw text & answer tables.
               </p>
             </div>
           </div>
@@ -77,35 +94,53 @@ export const PasteAndParseView: React.FC<PasteAndParseViewProps> = ({
         </div>
 
         {/* Input Mode Selector */}
-        <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
-          <span className="text-[11px] font-black text-slate-500 uppercase tracking-wider">Paste Mode:</span>
+        <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-100">
+          <span className="text-[11px] font-black text-slate-500 uppercase tracking-wider">Input Mode:</span>
           <div className="inline-flex p-1 rounded-xl bg-slate-100 text-xs font-bold shadow-inner">
             <button
+              onClick={() => setInputMode('pdf')}
+              className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                inputMode === 'pdf'
+                  ? 'bg-indigo-600 text-white font-black shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <FileUp className="w-3.5 h-3.5" />
+              <span>📄 Upload PDF / Image (NCERT AI)</span>
+            </button>
+            <button
               onClick={() => setInputMode('combined')}
-              className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
                 inputMode === 'combined'
                   ? 'bg-white text-indigo-900 font-black shadow-xs'
                   : 'text-slate-500 hover:text-slate-900'
               }`}
             >
-              Combined Questions & Answers (Single Box)
+              📝 Paste Combined Text
             </button>
             <button
               onClick={() => setInputMode('split')}
-              className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
                 inputMode === 'split'
                   ? 'bg-white text-indigo-900 font-black shadow-xs'
                   : 'text-slate-500 hover:text-slate-900'
               }`}
             >
-              Separate Boxes (Questions + Answers)
+              📑 Separate Qs + Ans Boxes
             </button>
           </div>
         </div>
       </div>
 
-      {/* Main Textarea Area */}
-      {inputMode === 'combined' ? (
+      {/* Main Mode Content Area */}
+      {inputMode === 'pdf' ? (
+        <PdfUploadDropzone
+          onPaperParsed={handlePdfParsed}
+          defaultClassId={classId}
+          defaultSubjectId={subjectId}
+          defaultBoard={board}
+        />
+      ) : inputMode === 'combined' ? (
         <div className="p-4 sm:p-5 rounded-3xl bg-white border border-slate-200 shadow-md card-3d-indigo space-y-3">
           <div className="flex items-center justify-between">
             <label className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">

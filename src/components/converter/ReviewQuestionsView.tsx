@@ -126,6 +126,8 @@ export const ReviewQuestionsView: React.FC<ReviewQuestionsViewProps> = ({
     return matchesSection && matchesSearch;
   });
 
+  const totalCalculatedMarks = parsedResult.questions.reduce((sum, q) => sum + (q.marks || 1), 0);
+
   const handleSaveEdit = () => {
     if (editingQuestion) {
       onUpdateQuestion(editingQuestion);
@@ -139,11 +141,16 @@ export const ReviewQuestionsView: React.FC<ReviewQuestionsViewProps> = ({
       <div className="p-4 sm:p-5 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h2 className="text-base font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-              <FileCheck className="w-5 h-5 text-emerald-600" /> 2. Review & Edit Questions
-            </h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+                <FileCheck className="w-5 h-5 text-emerald-600" /> 2. Review & Edit Questions
+              </h2>
+              <span className="px-2.5 py-0.5 rounded-full bg-slate-900 text-white text-[11px] font-mono font-bold shadow-xs">
+                Total Marks: {totalCalculatedMarks}
+              </span>
+            </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              Review parsed questions, options, verified correct answers, and Hindi explanations before generating JSON.
+              Review parsed questions, options, verified correct answers, marks distribution, and Hindi explanations before generating JSON.
             </p>
           </div>
 
@@ -294,8 +301,8 @@ export const ReviewQuestionsView: React.FC<ReviewQuestionsViewProps> = ({
                 }`}
               >
                 {/* Header row: Q#, Badges, Actions */}
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="w-7 h-7 rounded-xl bg-slate-900 text-white font-mono text-xs font-black flex items-center justify-center">
                       {q.questionNumber}
                     </span>
@@ -308,8 +315,39 @@ export const ReviewQuestionsView: React.FC<ReviewQuestionsViewProps> = ({
                           : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                       }`}
                     >
-                      {isMCQ ? 'MCQ (1 Mark)' : isShort ? 'Short Answer (2 Marks)' : 'Long Answer (5 Marks)'}
+                      {isMCQ
+                        ? `MCQ (${q.marks || 1}M)`
+                        : isShort
+                        ? `Short (${q.marks || 2}M)`
+                        : `Subjective (${q.marks || 5}M)`}
                     </span>
+
+                    {/* Quick Marks Selector */}
+                    <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg text-[10px] font-mono font-bold">
+                      <span className="px-1 text-slate-500">Marks:</span>
+                      {[1, 2, 4, 5, 8].map((mVal) => (
+                        <button
+                          key={mVal}
+                          type="button"
+                          onClick={() =>
+                            onUpdateQuestion({
+                              ...q,
+                              marks: mVal,
+                              type: mVal >= 5 ? 'long' : mVal === 1 && isMCQ ? 'mcq' : 'short',
+                            })
+                          }
+                          className={`px-1.5 py-0.5 rounded-md transition-all cursor-pointer ${
+                            (q.marks || 1) === mVal
+                              ? 'bg-slate-900 text-white shadow-xs'
+                              : 'text-slate-600 hover:bg-slate-200'
+                          }`}
+                          title={`Set ${mVal} Mark(s)`}
+                        >
+                          {mVal}M
+                        </button>
+                      ))}
+                    </div>
+
                     {q.correctAnswer ? (
                       <span className="px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-800 text-[11px] font-mono font-bold flex items-center gap-1">
                         <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Ans: {q.correctAnswer}
@@ -324,14 +362,14 @@ export const ReviewQuestionsView: React.FC<ReviewQuestionsViewProps> = ({
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => setEditingQuestion(JSON.parse(JSON.stringify(q)))}
-                      className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors"
-                      title="Edit Question"
+                      className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+                      title="Edit Question & Marks"
                     >
                       <Edit3 className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => onDeleteQuestion(q.id)}
-                      className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors"
+                      className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors cursor-pointer"
                       title="Delete Question"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -476,6 +514,47 @@ export const ReviewQuestionsView: React.FC<ReviewQuestionsViewProps> = ({
                   ))}
                 </div>
               )}
+
+              {/* Marks (अंक) Selector */}
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Marks (अंक)</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={editingQuestion.marks || 1}
+                    onChange={(e) =>
+                      setEditingQuestion({
+                        ...editingQuestion,
+                        marks: parseInt(e.target.value, 10) || 1,
+                      })
+                    }
+                    className="w-20 p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono font-bold text-center"
+                  />
+                  <div className="flex items-center gap-1">
+                    {[1, 2, 4, 5, 8, 10].map((mVal) => (
+                      <button
+                        key={mVal}
+                        type="button"
+                        onClick={() =>
+                          setEditingQuestion({
+                            ...editingQuestion,
+                            marks: mVal,
+                          })
+                        }
+                        className={`px-2.5 py-1.5 rounded-xl font-mono text-xs font-bold transition-all cursor-pointer ${
+                          (editingQuestion.marks || 1) === mVal
+                            ? 'bg-slate-900 text-white shadow-xs'
+                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        }`}
+                      >
+                        {mVal} Mark{mVal > 1 ? 's' : ''}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
 
               {/* Explanation / Model Answer */}
               <div>

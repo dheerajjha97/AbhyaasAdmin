@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   FileText,
   FileCheck,
@@ -61,6 +61,8 @@ import { DashboardView } from './components/dashboard/DashboardView';
 import { NavigationDrawer } from './components/layout/NavigationDrawer';
 import { MobileBottomNav } from './components/layout/MobileBottomNav';
 import { MobileSettingsModal } from './components/layout/MobileSettingsModal';
+import { PWAInstallButton } from './components/pwa/PWAInstallButton';
+import { OfflineIndicator } from './components/pwa/OfflineIndicator';
 
 
 export default function App() {
@@ -142,6 +144,8 @@ export default function App() {
     }>
   >([]);
 
+  const skipNextAutoParseRef = useRef(false);
+
   const handleParse = () => {
     const className = classId === 'class-12' ? 'Class 12' : classId === 'class-10' ? 'Class 10' : classId;
     const matchedSub = ALL_SUBJECTS.find((s) => s.id === subjectId);
@@ -160,8 +164,25 @@ export default function App() {
     setParsedResult(result);
   };
 
+  const handlePdfPaperParsed = (result: ParsedPaperResult, rawText: string) => {
+    skipNextAutoParseRef.current = true;
+    setParsedResult(result);
+    setRawCombinedText(rawText);
+    if (result.classId) {
+      setClassId(result.classId === '12' ? 'class-12' : result.classId === '10' ? 'class-10' : result.classId);
+    }
+    if (result.board) {
+      setBoard(result.board);
+    }
+    setActiveTab('review');
+  };
+
   // Auto re-parse on input text or metadata changes so JSON Generator & Review tabs are always fresh
   useEffect(() => {
+    if (skipNextAutoParseRef.current) {
+      skipNextAutoParseRef.current = false;
+      return;
+    }
     if (!rawCombinedText.trim()) {
       setParsedResult(null);
       return;
@@ -664,6 +685,9 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900 pb-20 md:pb-6">
+      {/* Offline Connectivity Toast Indicator */}
+      <OfflineIndicator />
+
       {/* Slide-out Navigation Drawer */}
       <NavigationDrawer
         isOpen={isDrawerOpen}
@@ -774,8 +798,10 @@ export default function App() {
             </button>
           </div>
 
-          {/* Right: GitHub Config Badge & Settings Trigger */}
+          {/* Right: PWA Install Trigger, GitHub Config Badge & Settings Trigger */}
           <div className="flex items-center gap-2 shrink-0">
+            <PWAInstallButton variant="nav" />
+
             <button
               onClick={() => setIsSettingsOpen(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-mono shadow-xs transition-all border border-slate-700 cursor-pointer"
@@ -986,6 +1012,10 @@ export default function App() {
                 onParse={handleParse}
                 onNavigateToReview={() => setActiveTab('review')}
                 onNavigateToJson={() => setActiveTab('json')}
+                onPaperParsedFromPdf={handlePdfPaperParsed}
+                classId={classId}
+                subjectId={subjectId}
+                board={board}
               />
             )}
 

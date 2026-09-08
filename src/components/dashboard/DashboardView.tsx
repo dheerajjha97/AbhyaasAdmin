@@ -527,14 +527,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           {/* Card 1: Question Bank Converter */}
           <div className="glass-panel p-5 space-y-4 hover:border-indigo-300 transition-all flex flex-col justify-between">
             <div className="space-y-2">
-              <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-700 flex items-center justify-center font-bold">
-                <FileText className="w-5 h-5" />
+              <div className="flex items-center justify-between">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-700 flex items-center justify-center font-bold">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <span className="px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-800 text-[10px] font-extrabold uppercase">
+                  PDF & NCERT AI
+                </span>
               </div>
               <h3 className="text-base font-black text-slate-900">
-                1. Exam Q&A Bank Converter
+                1. Exam Q&A & PDF NCERT Studio
               </h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Paste question papers or model sets. Extracts 70 MCQs, Short & Long questions with bilingual solutions automatically.
+                Upload question paper PDF/Images or paste text. Extracts MCQs, equations, brackets, and writes full NCERT/CBSE model answers.
               </p>
             </div>
 
@@ -542,7 +547,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               onClick={() => onSelectEngine('questions')}
               className="w-full py-2.5 rounded-xl glass-btn-indigo text-white text-xs font-black flex items-center justify-center gap-2 cursor-pointer"
             >
-              <span>Open Q&A Converter</span>
+              <span>Open PDF & Q&A Studio</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>

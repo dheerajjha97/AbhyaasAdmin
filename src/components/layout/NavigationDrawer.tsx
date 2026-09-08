@@ -17,6 +17,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { ALL_SUBJECTS, getSubjectsGroupedByStream } from '../../data/subjects';
+import { PWAInstallButton } from '../pwa/PWAInstallButton';
 
 interface NavigationDrawerProps {
   isOpen: boolean;
@@ -249,6 +250,11 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
                 <Settings className="w-3.5 h-3.5" />
                 <span>Configure Repo Credentials</span>
               </button>
+            </div>
+
+            {/* PWA App Installation Widget */}
+            <div className="pt-1">
+              <PWAInstallButton variant="drawer" />
             </div>
 
           </div>

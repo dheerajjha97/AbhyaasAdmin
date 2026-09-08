@@ -6,7 +6,8 @@ import { createServer as createViteServer } from 'vite';
 const app = express();
 const PORT = 3000;
 
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Initialize Gemini Client server-side
 const getGeminiClient = () => {
@@ -32,6 +33,175 @@ app.get('/api/health', (req, res) => {
     hasGeminiKey: !!process.env.GEMINI_API_KEY,
     timestamp: new Date().toISOString(),
   });
+});
+
+// PDF & Image Question Paper Parser with Automatic NCERT / CBSE Answer Generation
+app.post('/api/gemini/parse-pdf-paper', async (req, res) => {
+  try {
+    const {
+      fileBase64,
+      mimeType = 'application/pdf',
+      subjectName = 'Science / Mathematics',
+      className = 'Class 12',
+      board = 'CBSE',
+      generateNCERTAnswers = true,
+      answerLanguage = 'bilingual',
+      customInstructions = '',
+    } = req.body;
+
+    if (!fileBase64) {
+      return res.status(400).json({
+        success: false,
+        error: 'File content (base64) is required.',
+      });
+    }
+
+    const ai = getGeminiClient();
+    if (!ai) {
+      return res.status(500).json({
+        success: false,
+        error: 'GEMINI_API_KEY is not configured on the server. Please check the Secrets panel in Settings.',
+      });
+    }
+
+    // Strip data url prefix if included
+    const cleanBase64 = fileBase64.replace(/^data:[^;]+;base64,/, '');
+
+    const systemInstruction = `You are a premier Senior Examiner and NCERT / CBSE Curriculum Master Teacher for Indian Secondary and Senior Secondary Board Examinations (CBSE, Bihar Board BSEB, UP Board, ICSE, and State Boards).
+Your task is to analyze the provided Question Paper document (PDF or scanned image) comprehensively from the first page to the very last page.
+You MUST extract EVERY SINGLE QUESTION without omission or truncation. If the document has 100 MCQs, 30 Short questions, and 8 Long questions, you MUST extract ALL 138 questions sequentially from Question 1 to the end.
+
+CRITICAL INSTRUCTIONS:
+1. EXHAUSTIVE EXTRACTION: Never return a sample or subset. Extract 100% of all questions present in the document.
+2. Question Classification:
+   - "mcq": 1 Mark each, with exactly 4 options (A, B, C, D). Transcribe mathematical equations, physics formulas, intervals, brackets, and bilingual Hindi & English text with 100% accuracy.
+   - "short": 2 or 3 Marks each (Short answer type questions).
+   - "long": 5 Marks each (Long answer type / derivations / essay type).
+   - "case_study": 4 or 5 Marks case study / passage questions.
+3. Solutions & Explanations:
+   - For MCQs: Identify the correct option key ('A', 'B', 'C', or 'D') and provide a clear, concise NCERT conceptual explanation (1-2 sentences with the core formula or rule).
+   - For Short & Long Questions: Provide the step-wise model answer / key points suitable for board exams.
+4. Language: Output questions and answers in ${answerLanguage === 'hindi' ? 'Pure Hindi (हिंदी)' : answerLanguage === 'english' ? 'English' : 'Bilingual (Hindi + English with standard terminology)'}.
+5. Output MUST be valid JSON adhering strictly to the JSON schema.`;
+
+    const isAutoSubject = !subjectName || subjectName === 'auto';
+    const userPrompt = `Read the ENTIRE uploaded question paper document from page 1 to the final page.
+${isAutoSubject ? 'Auto-detect the Subject Name, Class Level, Board Name, and Examination Year directly from the top header.' : `Target Class: ${className}, Subject: ${subjectName}, Board: ${board}.`}
+
+MANDATE: Extract and solve ALL questions in the document (e.g. all 100 MCQs, all 30 Short questions, all 8 Long questions). DO NOT STOP OR TRUNCATE.
+
+Output a strictly valid JSON object with the following schema:
+{
+  "paperTitle": "Auto-detected Paper Title (e.g. Class 12 Mathematics Annual Examination 2026)",
+  "board": "Auto-detected Board (CBSE / BSEB / UP Board / etc.)",
+  "classId": "12",
+  "subject": "Auto-detected Subject (e.g. Mathematics / Physics / Chemistry / Biology)",
+  "totalMarks": 100,
+  "stats": {
+    "totalQuestions": 138,
+    "mcqCount": 100,
+    "shortCount": 30,
+    "longCount": 8,
+    "answeredCount": 138
+  },
+  "questions": [
+    {
+      "questionNumber": 1,
+      "type": "mcq",
+      "marks": 1,
+      "text": "Question 1 in English",
+      "textHindi": "प्रश्न 1 हिंदी में",
+      "options": [
+        { "key": "A", "text": "Option A text", "textHindi": "विकल्प A हिंदी में" },
+        { "key": "B", "text": "Option B text", "textHindi": "विकल्प B हिंदी में" },
+        { "key": "C", "text": "Option C text", "textHindi": "विकल्प C हिंदी में" },
+        { "key": "D", "text": "Option D text", "textHindi": "विकल्प D हिंदी में" }
+      ],
+      "correctAnswer": "D",
+      "fullAnswer": "(D) π/6",
+      "explanation": "Concise NCERT explanation in English",
+      "explanationHindi": "एनसीईआरटी के अनुसार संक्षिप्त व्याख्या हिंदी में"
+    }
+  ]
+}`;
+
+    const response = await (async () => {
+      // Primary model: gemini-3.8-flash, with automatic fallback to gemini-3.1-flash-lite on 503/429
+      const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
+      let lastErr: any = null;
+
+      for (const modelName of candidateModels) {
+        for (let attempt = 1; attempt <= 2; attempt++) {
+          try {
+            return await ai.models.generateContent({
+              model: modelName,
+              contents: [
+                {
+                  inlineData: {
+                    mimeType: mimeType,
+                    data: cleanBase64,
+                  },
+                },
+                {
+                  text: userPrompt,
+                },
+              ],
+              config: {
+                systemInstruction,
+                responseMimeType: 'application/json',
+                temperature: 0.1,
+                maxOutputTokens: 65536,
+              },
+            });
+          } catch (err: any) {
+            lastErr = err;
+            const errMsg = String(err?.message || '');
+            const is503OrRateLimit = errMsg.includes('503') || errMsg.includes('high demand') || errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.includes('UNAVAILABLE');
+            if (is503OrRateLimit) {
+              console.warn(`[Gemini PDF Parser] Model ${modelName} attempt ${attempt} hit 503/capacity issue. Retrying/Switching model...`);
+              // brief backoff before retry or switching model
+              await new Promise((r) => setTimeout(r, attempt * 1500));
+            } else {
+              // Non-transient error, break to next model or throw
+              break;
+            }
+          }
+        }
+      }
+      throw lastErr;
+    })();
+
+    const responseText = response.text || '';
+    let parsedJson: any = null;
+
+    try {
+      parsedJson = JSON.parse(responseText);
+    } catch (parseErr) {
+      const cleaned = responseText.replace(/```json\s*/i, '').replace(/```\s*$/i, '').trim();
+      parsedJson = JSON.parse(cleaned);
+    }
+
+    // Normalize if array was returned directly
+    if (Array.isArray(parsedJson)) {
+      parsedJson = {
+        paperTitle: `${isAutoSubject ? 'Question Paper' : subjectName} Examination Paper`,
+        questions: parsedJson,
+      };
+    } else if (parsedJson && !parsedJson.questions && parsedJson.data?.questions) {
+      parsedJson = parsedJson.data;
+    }
+
+    return res.json({
+      success: true,
+      data: parsedJson,
+    });
+  } catch (error: any) {
+    console.error('Error in /api/gemini/parse-pdf-paper:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to process PDF question paper with Gemini.',
+    });
+  }
 });
 
 // Single Question Answer Generation

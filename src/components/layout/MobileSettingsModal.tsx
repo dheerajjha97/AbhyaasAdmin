@@ -1,6 +1,7 @@
 import React from 'react';
-import { Github, Key, CheckCircle, X, ShieldAlert, Sparkles, ExternalLink } from 'lucide-react';
+import { Github, Key, CheckCircle, X, ShieldAlert, Sparkles, ExternalLink, Smartphone } from 'lucide-react';
 import { ThreeDCloudPushIllustration } from '../common/ThreeDIllustrations';
+import { PWAInstallButton } from '../pwa/PWAInstallButton';
 
 interface MobileSettingsModalProps {
   isOpen: boolean;
@@ -123,6 +124,25 @@ export const MobileSettingsModal: React.FC<MobileSettingsModalProps> = ({
                 className="w-full h-10 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-indigo-600 focus:outline-none shadow-2xs"
               />
             </div>
+          </div>
+        </div>
+
+        {/* Progressive Web App (PWA) Section */}
+        <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
+              <Smartphone className="w-4 h-4 text-indigo-600" />
+              <span>Progressive Web App (PWA)</span>
+            </div>
+            <span className="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-bold">
+              Standalone & Offline
+            </span>
+          </div>
+          <p className="text-[11px] text-slate-500 leading-relaxed">
+            Install Abhyaas on your home screen or desktop for fast offline access, full-screen view, and quick syllabus/paper editing.
+          </p>
+          <div className="pt-1">
+            <PWAInstallButton variant="drawer" />
           </div>
         </div>
 
