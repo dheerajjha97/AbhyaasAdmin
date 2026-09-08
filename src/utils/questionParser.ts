@@ -99,7 +99,7 @@ export function detectSubjectFromText(text: string): { id: string; name: string 
   if (targetToMatch.includes('भौतिक') || targetToMatch.includes('physics')) {
     return { id: 'physics', name: 'Physics (भौतिक विज्ञान)' };
   }
-  if (targetToMatch.includes('गणित') || targetToMatch.includes('math') || targetToMatch.includes('mathematics')) {
+  if (targetToMatch.includes('गणित') || targetToMatch.includes('math') || targetToMatch.includes('mathematics') || targetToMatch.includes('tan⁻¹') || targetToMatch.includes('sin⁻¹') || targetToMatch.includes('dy/dx') || targetToMatch.includes('समाकलन') || targetToMatch.includes('अवकलन') || targetToMatch.includes('सारणिक') || targetToMatch.includes('आव्यूह') || targetToMatch.includes('सिद्ध करें')) {
     return { id: 'mathematics', name: 'Mathematics (गणित)' };
   }
   if (targetToMatch.includes('हिंदी') || targetToMatch.includes('हिन्दी') || targetToMatch.includes('hindi')) {
@@ -129,16 +129,24 @@ const secAPattern = /^(?:[#\*\-\s]*)(?:(?:खण्ड|खंड|भाग|Secti
 const secBPattern = /^(?:[#\*\-\s]*)(?:(?:खण्ड|खंड|भाग|Section|Part|Group)\s*[–—\-:'"\s]*[बbB]|विषयनिष्ठ\s*प्रश्न|गैर\-वस्तुनिष्ठ|लघु\s*उत्तरीय|लघुउत्तरीय|Short\s*Answer|Short\s*Question|Subjective\s*Question)/i;
 const secCPattern = /^(?:[#\*\-\s]*)(?:(?:खण्ड|खंड|भाग|Section|Part|Group)\s*[–—\-:'"\s]*[सcCदdD]|दीर्घ\s*उत्तरीय|दीर्घउत्तरीय|Long\s*Answer|Long\s*Question|Essay\s*Type)/i;
 
+const mathAndSubjectiveVerbsRegex = /(?:\?|\:|\(यहाँ[^\)]+\)|निबंध|सप्रसंग\s*व्याख्या|व्याख्या|स्पष्ट\s*करें|लिखिए|लिखें|करें|कीजिए|वर्णन|अंतर|प्रकाश\s*डालिए|परिभाषा|सिद्ध\s*करें|सिद्ध\s*कीजिए|मान\s*ज्ञात|मान\s*निकालें|निकालें|निकालिए|ज्ञात\s*करें|ज्ञात\s*कीजिए|हल\s*करें|हल\s*कीजिए|दर्शाइए|दिखाइए|प्रमाणित|सरल\s*करें|समाकलन|अवकलन|सारणिक|आव्यूह|प्रायिकता|सत्यापित|जाँच|कारण\s*बताइए|क्या|क्यों|कैसे|किसे|किस|कौन|संक्षेपण|ढाल|बिंदु|बिन्दु|वक्र|समीकरण|फलन|dy\/dx|d\/dx|dx|dt|dy|dz|Show|Prove|Evaluate|Find|Solve|Calculate|Integrate|Differentiate|Determine|Derive|Express|Define|State|Simplify|If|When|Given)/i;
+
 /**
  * Helper to determine if a line starts a new question.
- * Strictly prevents years (1790, 1813, 1857, 1947) or quantities or bullet points from being matched as question numbers.
+ * Strictly prevents years (1790, 1813, 1857, 1947), quantities, or math derivation steps from being matched as question numbers.
  */
 function checkQuestionHeader(
   line: string, 
-  isSubjectiveSection: boolean = false
+  isSubjectiveSection: boolean = false,
+  previousQNum: number | null = null
 ): { isQuestion: boolean; qNum: number; restText: string } | null {
   const trimmed = line.trim();
   if (!trimmed) return null;
+
+  // Derivation and equation continuations are NEVER question headers
+  if (/^(?:\=|\+\s|\-\s|LHS|RHS|बायाँ\s*पक्ष|दायाँ\s*पक्ष|चूंकि|क्योंकि|सूत्र|अतः|इसलिए|इति\s*सिद्धम्|Hence\s*proved)/i.test(trimmed)) {
+    return null;
+  }
 
   // 1. Explicit Prefix: "Q1.", "Q.1", "Q. 1", "Q1:", "Q.No. 1", "Question 1:", "प्रश्न 1.", "प्रश्न सं. 1:", "प्रश्न 1-", "दीर्घ उत्तरीय प्रश्न 1:"
   const explicitMatch = trimmed.match(/^(?:Q\s*\.?\s*No\.?|Q\s*[\.\:\-\#]?|Question\s*[\.\:\-\#]?|प्रश्न\s*(?:सं\.?|क्रमांक|सं०)?\s*[\.\:\-\#]?|(?:लघु|दीर्घ)?\s*उत्तरीय\s*प्रश्न\s*[\.\:\-\#]?)\s*(\d{1,3})\s*[\.\)\:\-\–—\]\s]*(.*)$/i);
@@ -149,32 +157,35 @@ function checkQuestionHeader(
     }
   }
 
-  // 2. Number with delimiter at start of line: "1.", "1)", "(1)", "1 -", "1:"
-  const numDelimMatch = trimmed.match(/^(?:\(?(\d{1,3})\)?[\.\)\:\-\–—\]]|\((\d{1,3})\))\s+(.*)$/);
+  // 2. Number with delimiter at start of line: "1.", "1)", "(1)", "1 -", "1:", "1. वक्र..."
+  const numDelimMatch = trimmed.match(/^(?:\(?(\d{1,3})\)?[\.\)\:\-\–—\]]|\((\d{1,3})\))\s*(.*)$/);
   if (numDelimMatch) {
     const numStr = numDelimMatch[1] || numDelimMatch[2];
     const rest = numDelimMatch[3] || '';
     const qNum = parseInt(numStr, 10);
 
-    // In subjective sections, simple numbered lines like "2. घरेलू स्तर पर..." or "3. नदियों और..."
-    // without question keywords are bullet points of an essay or answer, NOT question headers.
-    if (isSubjectiveSection) {
-      // Must contain a question-like query structure (verb/question mark/colon/marks tag)
-      // or start with explicit question phrasing
-      const isLikelyQuestionPrompt = /(?:\?|:|\(यहाँ[^\)]+\)|निबंध|सप्रसंग व्याख्या|व्याख्या करें|स्पष्ट करें|लिखिए|लिखें|करें|कीजिए|वर्णन करें|अंतर स्पष्ट|प्रकाश डालिए|परिभाषा दें|सिद्ध करें|ज्ञात करें|कारण बताइए|क्या है|किसे कहते हैं|संक्षेपण)\b/i.test(rest) ||
-        /(?:Marks?|अंक|\[\d+\])/i.test(rest);
-
-      if (!isLikelyQuestionPrompt) {
-        return null; // Treat as continuation / bullet point of the current question's model answer
-      }
-    }
-
-    // Reject if rest starts with historical date markers or quantity markers
+    // Reject if rest starts with historical date markers or quantity units
     if (/^(?:ई\.|ई०|AD|BC|BCE|में|के|का|की|रुपये|रु|रू०|%|km|cm|kg|मीटर|ग्राम)\b/i.test(rest)) {
       return null;
     }
 
     if (qNum > 0 && qNum <= 200) {
+      // If sequential question progression (e.g. 6 -> 7, or fresh start 1)
+      if (previousQNum !== null && (qNum === previousQNum + 1 || (qNum > previousQNum && qNum <= previousQNum + 10))) {
+        return { isQuestion: true, qNum, restText: rest.trim() };
+      }
+
+      // In subjective sections, if not strictly sequential, check for question keywords/indicators
+      if (isSubjectiveSection) {
+        const isLikelyQuestionPrompt = mathAndSubjectiveVerbsRegex.test(rest) ||
+          /(?:Marks?|अंक|\[\d+\])/i.test(rest) ||
+          rest.includes('?') || rest.includes(':') || rest.length >= 10;
+
+        if (!isLikelyQuestionPrompt) {
+          return null; // Treat as continuation / bullet point of the current question's model answer
+        }
+      }
+
       return { isQuestion: true, qNum, restText: rest.trim() };
     }
   }
@@ -184,7 +195,7 @@ function checkQuestionHeader(
 
 /**
  * Accurately extracts the Question Prompt and Model Answer / Solution
- * from subjective question lines.
+ * from subjective question lines, preserving all math formulas, steps and derivations.
  */
 function splitSubjectiveQuestionAndAnswer(rawChunk: string, qLines: string[]): { questionText: string; answerText: string } {
   const cleanLines = qLines.map(l => l.trim()).filter(Boolean);
@@ -192,9 +203,9 @@ function splitSubjectiveQuestionAndAnswer(rawChunk: string, qLines: string[]): {
     return { questionText: rawChunk.trim(), answerText: '' };
   }
 
-  // 1. Check for single-line inline "Question? उत्तर: Answer"
+  // 1. Check for single-line inline "Question? उत्तर: Answer" or "सिद्ध करें... हल: ..."
   if (cleanLines.length === 1) {
-    const inlineMatch = cleanLines[0].match(/^(.*?)(?:\s+)(?:उत्तर|Ans|Answer|हल|Solution|सप्रसंग व्याख्या|व्याख्या|आदर्श उत्तर|मॉडल उत्तर)\s*[:\-\=–—\.\s]+([\s\S]+)$/i);
+    const inlineMatch = cleanLines[0].match(/^(.*?)(?:\s+)(?:उत्तर|Ans|Answer|हल|Solution|प्रमाण|Proof|सप्रसंग व्याख्या|व्याख्या|आदर्श उत्तर|मॉडल उत्तर)\s*[:\-\=–—\.\s]+([\s\S]+)$/i);
     if (inlineMatch && inlineMatch[1].trim() && inlineMatch[2].trim()) {
       return {
         questionText: inlineMatch[1].trim(),
@@ -204,47 +215,54 @@ function splitSubjectiveQuestionAndAnswer(rawChunk: string, qLines: string[]): {
     return { questionText: cleanLines[0], answerText: '' };
   }
 
-  // 2. Check line by line for explicit answer marker starting a line
-  const explicitAnsMarkerRegex = /^(?:उत्तर|Ans|Answer|हल|Solution|आदर्श उत्तर|मॉडल उत्तर|सप्रसंग व्याख्या|व्याख्या|प्रसंग|संदर्भ|उत्तर\s*\(संक्षेपण\))\s*[:\-\=–—\.\s]*/i;
+  // 2. Check line by line for explicit answer marker starting a line (e.g. "उत्तर:", "हल:", "Solution:", "Ans:", "प्रमाण:")
+  const explicitAnsMarkerRegex = /^(?:उत्तर|Ans|Answer|हल|Solution|प्रमाण|Proof|आदर्श उत्तर|मॉडल उत्तर|सप्रसंग व्याख्या|व्याख्या|प्रसंग|संदर्भ|उत्तर\s*\(संक्षेपण\))\s*[:\-\=–—\.\s]*/i;
   
   for (let i = 0; i < cleanLines.length; i++) {
     const line = cleanLines[i];
     if (explicitAnsMarkerRegex.test(line)) {
+      const lineAfterMarker = line.replace(explicitAnsMarkerRegex, '').trim();
       if (i === 0) {
-        const cleanedLine0 = line.replace(explicitAnsMarkerRegex, '').trim();
         return {
-          questionText: cleanedLine0 || 'प्रश्न',
-          answerText: [cleanedLine0, ...cleanLines.slice(1)].filter(Boolean).join('\n').trim()
+          questionText: lineAfterMarker || 'प्रश्न',
+          answerText: [lineAfterMarker, ...cleanLines.slice(1)].filter(Boolean).join('\n').trim()
         };
       } else {
         const qPart = cleanLines.slice(0, i).join('\n').trim();
-        const ansPart = [line.replace(explicitAnsMarkerRegex, '').trim(), ...cleanLines.slice(i + 1)].filter(Boolean).join('\n').trim();
+        const ansLines = lineAfterMarker ? [lineAfterMarker, ...cleanLines.slice(i + 1)] : cleanLines.slice(i + 1);
         return {
           questionText: qPart,
-          answerText: ansPart
+          answerText: ansLines.join('\n').trim()
         };
       }
     }
   }
 
-  // 3. Check for sub-item starting at line i (e.g. (i), (1), (a), or letter openings like "सेवा में")
-  // where previous lines form the general question prompt (e.g. "निबंध लिखें", "सप्रसंग व्याख्या करें", "आवेदन पत्र लिखें")
-  const subItemStartRegex = /^(?:\([iIvVxX\d]+|[iIvVxX\d]+\.|\([a-zA-Z]\))\s+|^(?:प्रस्तावना|सेवा में|कमरा नंबर|आदरणीय|प्रिय)\b/i;
-
+  // 3. Math derivation / proof start markers on non-first lines
   for (let i = 1; i < cleanLines.length; i++) {
-    if (subItemStartRegex.test(cleanLines[i])) {
-      const qPart = cleanLines.slice(0, i).join('\n').trim();
-      const ansPart = cleanLines.slice(i).join('\n').trim();
+    const line = cleanLines[i];
+    if (/^(?:बायाँ\s*पक्ष|दायाँ\s*पक्ष|LHS|RHS|माना\s*कि|दिया\s*है|Given\s*:|To\s*prove\s*:|Proof\s*:|प्रमाण\s*:|\=\s*)/i.test(line)) {
       return {
-        questionText: qPart,
-        answerText: ansPart
+        questionText: cleanLines.slice(0, i).join('\n').trim(),
+        answerText: cleanLines.slice(i).join('\n').trim()
       };
     }
   }
 
-  // 4. Check if first line is a clear question (ends with ?, :, लिखें, करें, दीजिए, बताइए, आदि)
+  // 4. Check for sub-item starting at line i (e.g. (i), (a), or letter openings like "सेवा में")
+  const subItemStartRegex = /^(?:\([iIvVxX\d]+|[iIvVxX\d]+\.|\([a-zA-Z]\))\s+|^(?:प्रस्तावना|सेवा में|कमरा नंबर|आदरणीय|प्रिय)\b/i;
+  for (let i = 1; i < cleanLines.length; i++) {
+    if (subItemStartRegex.test(cleanLines[i])) {
+      return {
+        questionText: cleanLines.slice(0, i).join('\n').trim(),
+        answerText: cleanLines.slice(i).join('\n').trim()
+      };
+    }
+  }
+
+  // 5. Check if first line is a clear question (ends with ?, :, लिखें, करें, दीजिए, बताइए, सिद्ध करें, आदि)
   const firstLine = cleanLines[0];
-  const questionVerbRegex = /(?:\?|:|\(यहाँ[^\)]+\)|निबंध|व्याख्या|लिखें|लिखिए|करें|कीजिए|दें|दीजिए|बताइए|स्पष्ट करें|टिप्पणी लिखें|वर्णन करें|समझाएं|अथवा)\s*$/i;
+  const questionVerbRegex = /(?:\?|\:|\(यहाँ[^\)]+\)|निबंध|व्याख्या|लिखें|लिखिए|करें|कीजिए|दें|दीजिए|बताइए|स्पष्ट\s*करें|टिप्पणी\s*लिखें|वर्णन\s*करें|समझाएं|अथवा|सिद्ध\s*करें|मान\s*ज्ञात\s*करें|हल\s*करें)\s*$/i;
   if (questionVerbRegex.test(firstLine) && cleanLines.length > 1) {
     return {
       questionText: firstLine,
@@ -252,9 +270,9 @@ function splitSubjectiveQuestionAndAnswer(rawChunk: string, qLines: string[]): {
     };
   }
 
-  // 5. Check if any line has an inline answer marker
+  // 6. Check if any line has an inline answer marker
   const fullText = cleanLines.join('\n');
-  const inlineMarkerRegex = /(?:^|\n|\s+)(?:उत्तर|Ans|Answer|हल|Solution|सप्रसंग व्याख्या|व्याख्या|आदर्श उत्तर|मॉडल उत्तर)\s*[:\-\=–—\.\s]+/i;
+  const inlineMarkerRegex = /(?:^|\n|\s+)(?:उत्तर|Ans|Answer|हल|Solution|प्रमाण|Proof|सप्रसंग व्याख्या|व्याख्या|आदर्श उत्तर|मॉडल उत्तर)\s*[:\-\=–—\.\s]+/i;
   const inlineMatch = fullText.match(inlineMarkerRegex);
   if (inlineMatch && inlineMatch.index !== undefined && inlineMatch.index > 0) {
     return {
@@ -263,7 +281,7 @@ function splitSubjectiveQuestionAndAnswer(rawChunk: string, qLines: string[]): {
     };
   }
 
-  // Fallback: If no boundary found and multiple lines, line 0 is question, rest is answer
+  // Fallback: If multiple lines, line 0 is question, rest is answer
   if (cleanLines.length > 1) {
     return {
       questionText: cleanLines[0],
@@ -445,7 +463,7 @@ export function parseExamContent(
         const trimmed = rawLine.trim();
         if (!trimmed) continue;
 
-        const qHeader = checkQuestionHeader(trimmed);
+        const qHeader = checkQuestionHeader(trimmed, false, currentQNum);
         if (qHeader) {
           saveCurrentMCQAns();
           currentQNum = qHeader.qNum;
@@ -566,7 +584,7 @@ export function parseExamContent(
         const trimmed = lines[i].trim();
         if (!trimmed) continue;
 
-        const qHeader = checkQuestionHeader(trimmed, true);
+        const qHeader = checkQuestionHeader(trimmed, true, currentQNum);
         if (qHeader) {
           saveCurrentSubj();
           currentQNum = qHeader.qNum;
@@ -755,19 +773,21 @@ function extractMCQOptionsAndQuestion(
   inlineAnsExpLines: string[];
 } {
   const keyMap: Record<string, 'A' | 'B' | 'C' | 'D'> = {
-    'A': 'A', 'a': 'A', 'क': 'A', 'अ': 'A', '1': 'A',
-    'B': 'B', 'b': 'B', 'ख': 'B', 'ब': 'B', '2': 'B',
-    'C': 'C', 'c': 'C', 'ग': 'C', 'स': 'C', '3': 'C',
-    'D': 'D', 'd': 'D', 'घ': 'D', 'द': 'D', '4': 'D',
+    'A': 'A', 'a': 'A', 'क': 'A', 'अ': 'A',
+    'B': 'B', 'b': 'B', 'ख': 'B', 'ब': 'B',
+    'C': 'C', 'c': 'C', 'ग': 'C', 'स': 'C',
+    'D': 'D', 'd': 'D', 'घ': 'D', 'द': 'D',
   };
 
-  const explicitAnsRegex = /(?:Ans|Answer|उत्तर|certainly|सही उत्तर|Correct Answer|Ans\.)\s*[:\-\=–—\.\s]*\s*(?:\(|\[)?([A-Da-dक-घअ-द1-4])(?:\)|\]|\-|\s|$)\s*(.*)/i;
+  const explicitMCQAnsRegex = /^(?:Ans|Answer|उत्तर|certainly|सही उत्तर|Correct Answer|Ans\.)\s*[:\-\=–—\.\s]*\s*(?:\(|\[)?([A-Da-dक-घअ-द])(?:\)|\]|\-|\s|$)\s*(.*)/i;
+  const explicitSubjAnsRegex = /^(?:उत्तर|हल|Solution|Ans|Answer|प्रमाण|Proof|आदर्श उत्तर|मॉडल उत्तर)\s*[:\-\=–—\.\s]*(.*)/i;
   const expStartRegex = /^(?:स्पष्टीकरण|व्याख्या|Explanation|Reason|कारण|विवरण|Explain)\s*[:\-\=–—\.\s]*(.*)/i;
 
   const contentLines: string[] = [];
   const inlineAnsExpLines: string[] = [];
   let inlineCorrectKey: 'A' | 'B' | 'C' | 'D' | undefined = undefined;
   let inlineAnsText = '';
+  let insideSubjectiveAnswer = false;
 
   // 1. Separate Answer/Explanation lines from candidate question/option lines
   for (let i = 0; i < bodyLines.length; i++) {
@@ -775,18 +795,37 @@ function extractMCQOptionsAndQuestion(
     const trimmed = rawLine.trim();
     if (!trimmed) continue;
 
-    const aMatch = trimmed.match(explicitAnsRegex);
-    const eMatch = trimmed.match(expStartRegex);
-    if (aMatch) {
-      const rawKey = aMatch[1];
-      inlineCorrectKey = keyMap[rawKey];
-      inlineAnsText = aMatch[2] ? aMatch[2].trim() : '';
+    if (insideSubjectiveAnswer) {
       inlineAnsExpLines.push(trimmed);
-    } else if (eMatch || inlineAnsExpLines.length > 0) {
-      inlineAnsExpLines.push(trimmed);
-    } else {
-      contentLines.push(rawLine);
+      continue;
     }
+
+    const mcqMatch = trimmed.match(explicitMCQAnsRegex);
+    if (mcqMatch) {
+      const rawKey = mcqMatch[1];
+      inlineCorrectKey = keyMap[rawKey];
+      inlineAnsText = mcqMatch[2] ? mcqMatch[2].trim() : '';
+      inlineAnsExpLines.push(trimmed);
+      continue;
+    }
+
+    const subjMatch = trimmed.match(explicitSubjAnsRegex);
+    if (subjMatch) {
+      insideSubjectiveAnswer = true;
+      const afterText = subjMatch[1] ? subjMatch[1].trim() : '';
+      if (afterText) {
+        inlineAnsExpLines.push(afterText);
+      }
+      continue;
+    }
+
+    const eMatch = trimmed.match(expStartRegex);
+    if (eMatch || inlineAnsExpLines.length > 0) {
+      inlineAnsExpLines.push(trimmed);
+      continue;
+    }
+
+    contentLines.push(rawLine);
   }
 
   if (contentLines.length === 0) {
@@ -800,10 +839,9 @@ function extractMCQOptionsAndQuestion(
   }
 
   // 2. Identify where Question prompt ends and Options begin
-  // A line starts options if it starts with (A), [A], A., A), (a), (क), (अ), (1), etc.
-  // Or contains 2+ option markers across the line
-  const startOptionRegex = /^(?:\s*)(?:\(|\[)?([A-Da-dक-घअ-द1-4])(?:\)|\]|\.|\-|\:)\s+/;
-  const multiOptionTestRegex = /(?:^|\s{2,}|\t|\s+)(?:\(|\[)?([A-Da-dक-घअ-द1-4])(?:\)|\]|\.|\-|\:)\s+/g;
+  // Strictly matches option letters A, B, C, D or Hindi क, ख, ग, घ / अ, ब, स, द
+  const startOptionRegex = /^(?:\s*)(?:\(|\[)?([A-Da-dक-घअ-द])(?:\)|\]|\.|\-|\:)\s+/;
+  const multiOptionTestRegex = /(?:^|\s{2,}|\t|\s+)(?:\(|\[)?([A-Da-dक-घअ-द])(?:\)|\]|\.|\-|\:)\s+/g;
 
   let firstOptLineIdx = -1;
 
@@ -814,13 +852,13 @@ function extractMCQOptionsAndQuestion(
     const startMatch = line.match(startOptionRegex);
     if (startMatch) {
       const rawKey = startMatch[1];
-      // If it starts with A, a, क, अ, 1 -> this is definitely the first option
-      if (['A', 'a', 'क', 'अ', '1'].includes(rawKey)) {
+      // If it starts with A, a, क, अ -> this is definitely the first option
+      if (['A', 'a', 'क', 'अ'].includes(rawKey)) {
         firstOptLineIdx = i;
         break;
       }
       // If it starts with B, C, D (e.g. A was inline or missing), it's also options
-      if (['B', 'b', 'ख', 'ब', 'C', 'c', 'ग', 'स', 'D', 'd', 'घ', 'द', '2', '3', '4'].includes(rawKey)) {
+      if (['B', 'b', 'ख', 'ब', 'C', 'c', 'ग', 'स', 'D', 'd', 'घ', 'द'].includes(rawKey)) {
         firstOptLineIdx = i;
         break;
       }
@@ -843,8 +881,8 @@ function extractMCQOptionsAndQuestion(
   } else {
     // Check if options are inline at the end of a single or multiline block
     const fullText = contentLines.join('\n');
-    // Search for the first appearance of "(A) ", "A. ", "(a) ", "(क) ", "(अ) ", "(1) "
-    const inlineFirstOptMatch = fullText.match(/(?:^|[\n\r\s]+)(?:\(|\[)?([A-Da-dक-घअ-द1-4])(?:\)|\]|\.|\-|\:)\s+/);
+    // Search for the first appearance of "(A) ", "A. ", "(a) ", "(क) ", "(अ) "
+    const inlineFirstOptMatch = fullText.match(/(?:^|[\n\r\s]+)(?:\(|\[)?([A-Da-dक-घअ-द])(?:\)|\]|\.|\-|\:)\s+/);
     if (inlineFirstOptMatch && inlineFirstOptMatch.index !== undefined && inlineFirstOptMatch.index >= 0) {
       const splitIdx = inlineFirstOptMatch.index;
       const qPart = fullText.substring(0, splitIdx).trim();
@@ -862,10 +900,7 @@ function extractMCQOptionsAndQuestion(
   const optBlock = optLines.join('\n');
 
   if (optBlock.trim()) {
-    // Regex matching candidate option delimiters:
-    // Matches (A), [A], A., A), (a), [a], a., a), (क), [क], क., क), (अ), [अ], अ., अ), (1), [1], 1., 1)
-    // ONLY when preceded by start of line, newline, or whitespace
-    const markerRegex = /(?:^|[\s\t\n]+)(?:\(|\[)?([A-Da-dक-घअ-द1-4])(?:\)|\]|\.|\-|\:)\s*/g;
+    const markerRegex = /(?:^|[\s\t\n]+)(?:\(|\[)?([A-Da-dक-घअ-द])(?:\)|\]|\.|\-|\:)\s*/g;
 
     interface Hit {
       rawKey: string;
@@ -895,9 +930,6 @@ function extractMCQOptionsAndQuestion(
       });
     }
 
-    // Filter valid unique hits to avoid matching brackets inside formulas as option keys
-    // For example: if we already found 'A', next expected key is 'B' (or 'C' if 'B' missed).
-    // If 'A' appears again inside Option D e.g. "(D) Both (A) and (B)", it will NOT be treated as a new option!
     const validHits: Hit[] = [];
     const usedKeys = new Set<'A' | 'B' | 'C' | 'D'>();
 
@@ -909,7 +941,6 @@ function extractMCQOptionsAndQuestion(
       }
     }
 
-    // Now accurately slice option texts between valid hits
     for (let i = 0; i < validHits.length; i++) {
       const currentHit = validHits[i];
       const nextHit = validHits[i + 1];
@@ -921,7 +952,6 @@ function extractMCQOptionsAndQuestion(
         rawOptText = optBlock.substring(currentHit.textStartIndex).trim();
       }
 
-      // Strip any trailing answer markers if accidentally present in option text
       rawOptText = rawOptText.replace(/(?:Ans|Answer|उत्तर|सही उत्तर)\s*[:\-\.]?.*$/i, '').trim();
 
       if (rawOptText) {
@@ -951,7 +981,7 @@ function extractMCQOptionsAndQuestion(
 
 /**
  * Parses MCQs with (A), (B), (C), (D) or (a),(b),(c),(d) or (क),(ख),(ग),(घ) options.
- * Accurately parses pure Hindi, pure English, and Bilingual question blocks.
+ * Seamlessly handles subjective questions and math proofs even if pasted without section headers.
  */
 function parseMCQSection(
   text: string,
@@ -975,7 +1005,47 @@ function parseMCQSection(
       inlineAnsExpLines
     } = extractMCQOptionsAndQuestion(bodyLines, qNum);
 
-    // Lookup Answer & Explanation
+    const isSubjective = options.length < 2;
+
+    if (isSubjective) {
+      const fullAnswerContent = inlineAnsExpLines.length > 0 
+        ? inlineAnsExpLines.join('\n').trim() 
+        : (inlineAnsText || undefined);
+
+      const textLower = (questionText + ' ' + (fullAnswerContent || '')).toLowerCase();
+      const isLong = textLower.includes('दीर्घ') ||
+                     textLower.includes('सविस्तार') ||
+                     textLower.includes('व्याख्या करें') ||
+                     textLower.includes('वर्णन करें') ||
+                     textLower.includes('सिद्ध करें') ||
+                     textLower.includes('सिद्ध कीजिए') ||
+                     textLower.includes('prove that') ||
+                     textLower.includes('show that') ||
+                     textLower.includes('5 अंक') ||
+                     textLower.includes('5 marks') ||
+                     textLower.includes('इति सिद्धम्') ||
+                     textLower.includes('hence proved') ||
+                     textLower.includes('प्रमेय');
+
+      questions.push({
+        id: `q-subj-${qNum}`,
+        sectionId: isLong ? 'sec-c' : 'sec-b',
+        sectionName: isLong ? 'खण्ड–स : दीर्घ उत्तरीय प्रश्न' : 'खण्ड–ब : लघु उत्तरीय प्रश्न',
+        questionNumber: qNum,
+        type: isLong ? 'long' : 'short',
+        text: questionText,
+        textHindi: questionText,
+        options: undefined,
+        correctAnswer: undefined,
+        correctAnswerText: undefined,
+        modelAnswer: fullAnswerContent,
+        explanationHindi: fullAnswerContent,
+        marks: isLong ? 5 : 2,
+      });
+      return;
+    }
+
+    // Lookup Answer & Explanation for standard MCQ
     const ansInfo = answersMap[qNum];
     const correctKey = ansInfo ? ansInfo.correctKey : inlineCorrectKey;
     const explanation = ansInfo ? ansInfo.explanation : (inlineAnsExpLines.length > 0 ? inlineAnsExpLines.join('\n').trim() : undefined);
@@ -1002,7 +1072,7 @@ function parseMCQSection(
     const trimmed = rawLine.trim();
     if (!trimmed) continue;
 
-    const qHeader = checkQuestionHeader(trimmed);
+    const qHeader = checkQuestionHeader(trimmed, false, currentQNum);
     if (qHeader) {
       if (currentQNum !== null) {
         processMCQChunk(currentQNum, currentBodyLines);
@@ -1130,7 +1200,7 @@ function parseSubjectiveSection(
     const trimmed = rawLine.trim();
     if (!trimmed) continue;
 
-    const qHeader = checkQuestionHeader(trimmed, true);
+    const qHeader = checkQuestionHeader(trimmed, true, currentQNum);
     if (qHeader) {
       if (currentQNum !== null) {
         processSubjectiveChunk(currentQNum, currentLines, seqCounter++);
