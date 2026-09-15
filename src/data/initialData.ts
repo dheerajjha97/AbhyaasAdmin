@@ -1,16 +1,33 @@
 import { ClassItem, SubjectItem, QuestionPaper, Question, QuestionStatus, Chapter, Note, PublishRelease, ActivityItem } from '../types';
 import { parseExamContent } from '../utils/questionParser';
-import { SAMPLE_BIOLOGY_2026_TEXT } from './sampleQuestionBank';
+import { SAMPLE_BIOLOGY_2026_TEXT, SAMPLE_CLASS10_SCIENCE_2026_TEXT } from './sampleQuestionBank';
 
 export const INITIAL_CLASSES: ClassItem[] = [
-  { id: 'class-12', name: 'Class 12', stream: 'Science (PCB / PCM)', order: 1, code: '12-SCI' },
-  { id: 'class-12-arts', name: 'Class 12', stream: 'Arts & Humanities', order: 2, code: '12-ART' },
-  { id: 'class-10', name: 'Class 10', stream: 'Matriculation (General)', order: 3, code: '10-GEN' },
-  { id: 'class-neet', name: 'NEET UG', stream: 'Medical Entrance Exam', order: 4, code: 'NEET-UG' },
+  { id: 'class-12', name: 'Class 12', stream: 'Science (PCB / PCM)', streams: ['Science', 'PCB', 'PCM'], order: 1, code: '12-SCI' },
+  { id: 'class-12-arts', name: 'Class 12', stream: 'Arts & Humanities', streams: ['Arts', 'Humanities'], order: 2, code: '12-ART' },
+  { id: 'class-11', name: 'Class 11', stream: 'Senior Secondary', streams: ['Science', 'Arts', 'Commerce'], order: 3, code: '11-SCI' },
+  { id: 'class-10', name: 'Class 10', stream: 'Matriculation (Science, Math, SST)', streams: ['Matric', 'General Science'], order: 4, code: '10-MAT' },
+  { id: 'class-9', name: 'Class 9', stream: 'Secondary (Science, Math, SST)', streams: ['Secondary', 'General Science'], order: 5, code: '9-SEC' },
+  { id: 'class-neet', name: 'NEET UG', stream: 'Medical Entrance Exam', streams: ['Medical', 'NEET'], order: 6, code: 'NEET-UG' },
 ];
 
 export const INITIAL_SUBJECTS: SubjectItem[] = [
-  // Science
+  // Class 10 (Matriculation)
+  { id: 'sub-sci-10', classId: 'class-10', name: 'Science', hindiName: 'विज्ञान', code: 'SCI-10', iconName: 'Microscope', color: 'cyan', paperCount: 1 },
+  { id: 'sub-math-10', classId: 'class-10', name: 'Mathematics', hindiName: 'गणित', code: 'MATH-10', iconName: 'Calculator', color: 'blue', paperCount: 0 },
+  { id: 'sub-sst-10', classId: 'class-10', name: 'Social Science', hindiName: 'सामाजिक विज्ञान', code: 'SST-10', iconName: 'Globe', color: 'amber', paperCount: 0 },
+  { id: 'sub-hin-10', classId: 'class-10', name: 'Hindi', hindiName: 'हिंदी', code: 'HIN-10', iconName: 'BookOpen', color: 'rose', paperCount: 0 },
+  { id: 'sub-eng-10', classId: 'class-10', name: 'English', hindiName: 'अंग्रेज़ी', code: 'ENG-10', iconName: 'Languages', color: 'violet', paperCount: 0 },
+  { id: 'sub-sans-10', classId: 'class-10', name: 'Sanskrit', hindiName: 'संस्कृत', code: 'SANS-10', iconName: 'Scroll', color: 'amber', paperCount: 0 },
+
+  // Class 9 (Secondary)
+  { id: 'sub-sci-9', classId: 'class-9', name: 'Science', hindiName: 'विज्ञान', code: 'SCI-9', iconName: 'Microscope', color: 'teal', paperCount: 0 },
+  { id: 'sub-math-9', classId: 'class-9', name: 'Mathematics', hindiName: 'गणित', code: 'MATH-9', iconName: 'Calculator', color: 'blue', paperCount: 0 },
+  { id: 'sub-sst-9', classId: 'class-9', name: 'Social Science', hindiName: 'सामाजिक विज्ञान', code: 'SST-9', iconName: 'Globe', color: 'amber', paperCount: 0 },
+  { id: 'sub-hin-9', classId: 'class-9', name: 'Hindi', hindiName: 'हिंदी', code: 'HIN-9', iconName: 'BookOpen', color: 'rose', paperCount: 0 },
+  { id: 'sub-eng-9', classId: 'class-9', name: 'English', hindiName: 'अंग्रेज़ी', code: 'ENG-9', iconName: 'Languages', color: 'violet', paperCount: 0 },
+
+  // Science - Class 12
   { id: 'sub-bio-12', classId: 'class-12', name: 'Biology', hindiName: 'जीव विज्ञान', code: 'BIO-12', iconName: 'Dna', color: 'emerald', paperCount: 1 },
   { id: 'sub-phy-12', classId: 'class-12', name: 'Physics', hindiName: 'भौतिक विज्ञान', code: 'PHY-12', iconName: 'Atom', color: 'indigo', paperCount: 0 },
   { id: 'sub-chem-12', classId: 'class-12', name: 'Chemistry', hindiName: 'रसायन विज्ञान', code: 'CHEM-12', iconName: 'FlaskConical', color: 'amber', paperCount: 0 },
@@ -74,6 +91,38 @@ const generateBio96Questions = (): Question[] => {
   }));
 };
 
+// Generate real board questions for Class 10 Science
+const generateSci10Questions = (): Question[] => {
+  const parsedSci = parseExamContent(SAMPLE_CLASS10_SCIENCE_2026_TEXT, '', {
+    classId: 'class-10',
+    className: 'Class 10',
+    subjectId: 'science-10',
+    subjectName: 'Science (विज्ञान)',
+    board: 'Bihar Board (BSEB Matric)',
+    year: 2026,
+    set: 'Set A',
+  });
+
+  return parsedSci.questions.map((q, idx) => ({
+    id: q.id || `q-sci10-${idx + 1}`,
+    paperId: 'paper-sci10-2026-a',
+    questionNumber: q.questionNumber,
+    type: q.type === 'mcq' ? 'mcq' : q.type === 'short' ? 'short' : 'long',
+    text: q.text,
+    textHindi: q.textHindi,
+    options: q.options?.map((o) => ({ id: o.id, key: o.key, text: o.text, textHindi: o.textHindi })),
+    correctAnswer: q.correctAnswer || (q.type === 'mcq' ? 'A' : 'Subjective'),
+    explanation: q.explanation || q.modelAnswer,
+    explanationHindi: q.explanationHindi,
+    aiAnswer: q.modelAnswer || q.explanation,
+    aiStatus: 'approved' as QuestionStatus,
+    marks: q.marks,
+    negativeMarks: 0,
+    chapterId: `chap-sci10-${(idx % 4) + 1}`,
+    difficulty: q.type === 'long' ? 'hard' : q.type === 'short' ? 'medium' : 'easy',
+  }));
+};
+
 export const INITIAL_PAPERS: QuestionPaper[] = [
   {
     id: 'paper-bio-2026-a',
@@ -93,9 +142,116 @@ export const INITIAL_PAPERS: QuestionPaper[] = [
     createdAt: '2026-08-20T10:00:00Z',
     updatedAt: '2026-08-28T14:30:00Z',
   },
+  {
+    id: 'paper-sci10-2026-a',
+    classId: 'class-10',
+    subjectId: 'science-10',
+    title: 'Class 10 Science (विज्ञान) Matric 2026 Model Paper',
+    year: 2026,
+    set: 'Set A',
+    durationMinutes: 195,
+    totalMarks: 80,
+    totalQuestions: 18,
+    status: 'published',
+    version: 1,
+    questions: generateSci10Questions(),
+    githubSourceFile: 'data/papers/class10_science_2026_set_a.json',
+    isAvailableOnGithub: true,
+    createdAt: '2026-08-22T10:00:00Z',
+    updatedAt: '2026-08-29T11:00:00Z',
+  },
 ];
 
 export const INITIAL_CHAPTERS: Chapter[] = [
+  // Class 10 Science Chapters
+  {
+    id: 'chap-sci10-1',
+    classId: 'class-10',
+    subjectId: 'sub-sci-10',
+    chapterNumber: 1,
+    title: 'Chemical Reactions and Equations',
+    hindiTitle: 'रासायनिक अभिक्रियाएं एवं समीकरण',
+    topics: [
+      { id: 'top-c10-1-1', title: 'Types of Chemical Reactions', hindiTitle: 'रासायनिक अभिक्रियाओं के प्रकार', completed: true, order: 1 },
+      { id: 'top-c10-1-2', title: 'Corrosion and Rancidity', hindiTitle: 'संक्षारण एवं विकृतगंधिता', completed: true, order: 2 },
+    ],
+  },
+  {
+    id: 'chap-sci10-2',
+    classId: 'class-10',
+    subjectId: 'sub-sci-10',
+    chapterNumber: 2,
+    title: 'Acids, Bases and Salts',
+    hindiTitle: 'अम्ल, क्षारक एवं लवण',
+    topics: [
+      { id: 'top-c10-2-1', title: 'pH Scale and Everyday Life Applications', hindiTitle: 'pH पैमाना एवं दैनिक जीवन में महत्व', completed: true, order: 1 },
+      { id: 'top-c10-2-2', title: 'Bleaching Powder & Plaster of Paris', hindiTitle: 'विरंजक चूर्ण एवं प्लास्टर ऑफ पेरिस', completed: true, order: 2 },
+    ],
+  },
+  {
+    id: 'chap-sci10-3',
+    classId: 'class-10',
+    subjectId: 'sub-sci-10',
+    chapterNumber: 3,
+    title: 'Life Processes',
+    hindiTitle: 'जैव प्रक्रम (पोषण, श्वसन, वहन, उत्सर्जन)',
+    topics: [
+      { id: 'top-c10-3-1', title: 'Autotrophic & Heterotrophic Nutrition', hindiTitle: 'स्वपोषी एवं विषमपोषी पोषण', completed: true, order: 1 },
+      { id: 'top-c10-3-2', title: 'Human Circulatory & Excretory Systems', hindiTitle: 'मानव परिसंचरण एवं उत्सर्जन तंत्र', completed: true, order: 2 },
+    ],
+  },
+  {
+    id: 'chap-sci10-4',
+    classId: 'class-10',
+    subjectId: 'sub-sci-10',
+    chapterNumber: 4,
+    title: 'Light: Reflection and Refraction & Electricity',
+    hindiTitle: 'प्रकाश का परावर्तन/अपवर्तन एवं विद्युत',
+    topics: [
+      { id: 'top-c10-4-1', title: 'Laws of Reflection & Refraction, Lens Formula', hindiTitle: 'परावर्तन/अपवर्तन नियम व लेंस सूत्र', completed: true, order: 1 },
+      { id: 'top-c10-4-2', title: "Ohm's Law, Resistance in Series and Parallel", hindiTitle: "ओम का नियम व प्रतिरोधों का संयोजन", completed: true, order: 2 },
+    ],
+  },
+
+  // Class 9 Science Chapters
+  {
+    id: 'chap-sci9-1',
+    classId: 'class-9',
+    subjectId: 'sub-sci-9',
+    chapterNumber: 1,
+    title: 'Matter in Our Surroundings & Is Matter Around Us Pure',
+    hindiTitle: 'हमारे आस-पास के पदार्थ एवं क्या पदार्थ शुद्ध हैं',
+    topics: [
+      { id: 'top-c9-1-1', title: 'States of Matter and Phase Changes', hindiTitle: 'पदार्थ की अवस्थाएँ एवं गुप्त ऊष्मा', completed: true, order: 1 },
+      { id: 'top-c9-1-2', title: 'Solutions, Colloids and Suspensions', hindiTitle: 'विलयन, कोलाइड एवं निलंबन', completed: true, order: 2 },
+    ],
+  },
+  {
+    id: 'chap-sci9-2',
+    classId: 'class-9',
+    subjectId: 'sub-sci-9',
+    chapterNumber: 2,
+    title: 'The Fundamental Unit of Life: Cell & Tissues',
+    hindiTitle: 'जीवन की मौलिक इकाई: कोशिका एवं ऊतक',
+    topics: [
+      { id: 'top-c9-2-1', title: 'Cell Organelles (Mitochondria, Plastids, ER)', hindiTitle: 'कोशिकांग संरचना एवं कार्य', completed: true, order: 1 },
+      { id: 'top-c9-2-2', title: 'Plant and Animal Tissues (Xylem, Phloem, Muscle)', hindiTitle: 'पादप एवं जन्तु ऊतक', completed: true, order: 2 },
+    ],
+  },
+  {
+    id: 'chap-sci9-3',
+    classId: 'class-9',
+    subjectId: 'sub-sci-9',
+    chapterNumber: 3,
+    title: 'Motion, Force and Laws of Motion & Gravitation',
+    hindiTitle: 'गति, बल तथा गति के नियम एवं गुरुत्वाकर्षण',
+    topics: [
+      { id: 'top-c9-3-1', title: "Newton's Three Laws of Motion & Momentum", hindiTitle: "न्यूटन के गति के नियम एवं संवेग संरक्षण", completed: true, order: 1 },
+      { id: 'top-c9-3-2', title: 'Universal Law of Gravitation & Free Fall', hindiTitle: 'गुरुत्वाकर्षण का सार्वत्रिक नियम एवं मुक्त पतन', completed: true, order: 2 },
+    ],
+  },
+
+  // Class 12 Chapters
   {
     id: 'chap-bio-1',
     classId: 'class-12',
@@ -227,6 +383,31 @@ export const INITIAL_NOTES: Note[] = [
     status: 'published',
     updatedAt: '2026-08-26T14:15:00Z',
     tags: ['Physics', 'Formulas', 'Gauss Law'],
+  },
+  {
+    id: 'note-sci-10-1',
+    classId: 'class-10',
+    subjectId: 'sub-sci-10',
+    chapterId: 'chap-sci10-4',
+    title: 'Class 10 Light & Optics Important Board Formulas',
+    content: `# Class 10 Science: Light Reflection & Refraction Summary
+
+## Mirror Formula & Magnification
+- **Mirror Formula**: 1/f = 1/v + 1/u
+- **Magnification (m)**: m = -v/u = h'/h
+- **Radius of Curvature**: R = 2f
+
+## Lens Formula & Power
+- **Lens Formula**: 1/f = 1/v - 1/u
+- **Magnification (m)**: m = v/u = h'/h
+- **Power of Lens (P)**: P = 1/f (in meters). Unit: Dioptre (D)
+
+## Key Exam Tips
+- Concave mirror has negative focal length; convex mirror has positive.
+- Convex lens has positive power; concave lens has negative power.`,
+    status: 'published',
+    updatedAt: '2026-08-29T10:00:00Z',
+    tags: ['Science', 'Class 10', 'Optics', 'Formulas'],
   },
 ];
 

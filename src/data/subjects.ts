@@ -84,14 +84,44 @@ export const ALL_SUBJECTS: SubjectOption[] = [
     color: 'emerald'
   },
   {
-    id: 'science-10',
-    name: 'General Science (सामान्य विज्ञान - Class 9/10)',
+    id: 'science',
+    name: 'Science (विज्ञान - Class 9 & 10)',
     hindiName: 'विज्ञान',
     code: 'SCI',
     stream: 'science',
     categoryLabel: 'Science (विज्ञान)',
     iconName: 'Microscope',
     color: 'cyan'
+  },
+  {
+    id: 'science-10',
+    name: 'Class 10 Science (विज्ञान)',
+    hindiName: 'विज्ञान (कक्षा 10)',
+    code: 'SCI-10',
+    stream: 'science',
+    categoryLabel: 'Science (विज्ञान)',
+    iconName: 'Microscope',
+    color: 'cyan'
+  },
+  {
+    id: 'science-9',
+    name: 'Class 9 Science (विज्ञान)',
+    hindiName: 'विज्ञान (कक्षा 9)',
+    code: 'SCI-9',
+    stream: 'science',
+    categoryLabel: 'Science (विज्ञान)',
+    iconName: 'Microscope',
+    color: 'teal'
+  },
+  {
+    id: 'social-science-10',
+    name: 'Social Science (सामाजिक विज्ञान - Class 9/10)',
+    hindiName: 'सामाजिक विज्ञान',
+    code: 'SST',
+    stream: 'arts',
+    categoryLabel: 'Arts & Humanities (कला संकाय)',
+    iconName: 'Globe',
+    color: 'amber'
   },
   {
     id: 'evs',
@@ -389,7 +419,12 @@ export const ALL_SUBJECTS: SubjectOption[] = [
 
 // Helper functions
 export const getSubjectById = (id: string): SubjectOption | undefined => {
-  return ALL_SUBJECTS.find((s) => s.id.toLowerCase() === id.toLowerCase());
+  const direct = ALL_SUBJECTS.find((s) => s.id.toLowerCase() === id.toLowerCase());
+  if (direct) return direct;
+  if (id.toLowerCase() === 'sci' || id.toLowerCase() === 'science') {
+    return ALL_SUBJECTS.find((s) => s.id === 'science' || s.id === 'science-10');
+  }
+  return undefined;
 };
 
 export const getSubjectDisplayName = (id: string): string => {

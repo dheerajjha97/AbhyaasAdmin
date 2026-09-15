@@ -93,12 +93,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Load from local storage or initial
   const [classes, setClasses] = useState<ClassItem[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_PREFIX + 'classes');
-    return saved ? JSON.parse(saved) : INITIAL_CLASSES;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const existingIds = new Set(parsed.map((c: ClassItem) => c.id));
+          const missing = INITIAL_CLASSES.filter((c) => !existingIds.has(c.id));
+          return [...parsed, ...missing];
+        }
+      } catch (e) {
+        console.error('Failed to parse cached classes:', e);
+      }
+    }
+    return INITIAL_CLASSES;
   });
 
   const [subjects, setSubjects] = useState<SubjectItem[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_PREFIX + 'subjects');
-    return saved ? JSON.parse(saved) : INITIAL_SUBJECTS;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const existingIds = new Set(parsed.map((s: SubjectItem) => s.id));
+          const missing = INITIAL_SUBJECTS.filter((s) => !existingIds.has(s.id));
+          return [...parsed, ...missing];
+        }
+      } catch (e) {
+        console.error('Failed to parse cached subjects:', e);
+      }
+    }
+    return INITIAL_SUBJECTS;
   });
 
   const [papers, setPapers] = useState<QuestionPaper[]>(() => {
@@ -107,8 +131,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       try {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
+          const existingIds = new Set(parsed.map((p: QuestionPaper) => p.id));
+          const missing = INITIAL_PAPERS.filter((p) => !existingIds.has(p.id));
+          const merged = [...parsed, ...missing];
           // Filter to only available question banks (questions.length > 0)
-          const availableOnly = parsed.filter((p: QuestionPaper) => p.questions && p.questions.length > 0);
+          const availableOnly = merged.filter((p: QuestionPaper) => p.questions && p.questions.length > 0);
           if (availableOnly.length > 0) return availableOnly;
         }
       } catch (e) {

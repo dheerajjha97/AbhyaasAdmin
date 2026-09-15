@@ -12,9 +12,19 @@ import {
   RefreshCw,
   Copy,
   Info,
-  Trash2
+  Trash2,
+  Microscope,
+  Atom,
+  Dna,
+  FlaskConical
 } from 'lucide-react';
-import { ParsedSyllabusResult } from '../../utils/syllabusParser';
+import {
+  ParsedSyllabusResult,
+  SAMPLE_CLASS10_SCIENCE_SYLLABUS_TEXT,
+  SAMPLE_CLASS9_SCIENCE_SYLLABUS_TEXT,
+  SAMPLE_BIOLOGY_SYLLABUS_TEXT,
+  SAMPLE_PHYSICS_SYLLABUS_TEXT
+} from '../../utils/syllabusParser';
 import { ThreeDSyllabusIllustration } from '../common/ThreeDIllustrations';
 
 interface PasteAndParseSyllabusViewProps {
@@ -35,9 +45,16 @@ export const PasteAndParseSyllabusView: React.FC<PasteAndParseSyllabusViewProps>
   onNavigateToJson,
 }) => {
   const [copiedSample, setCopiedSample] = useState(false);
+  const [activeSampleName, setActiveSampleName] = useState<string>('');
 
   const handleClear = () => {
     setRawSyllabusText('');
+    setActiveSampleName('');
+  };
+
+  const handleLoadSample = (sampleText: string, name: string) => {
+    setRawSyllabusText(sampleText.trim());
+    setActiveSampleName(name);
   };
 
   return (
@@ -56,9 +73,73 @@ export const PasteAndParseSyllabusView: React.FC<PasteAndParseSyllabusViewProps>
               </h3>
             </div>
             <p className="text-xs text-slate-600">
-              Paste your curriculum outline with Units, Chapters, Topics, and Marks weightage. Our AI parser extracts structured trees in bilingual format.
+              Paste your curriculum outline with Units, Chapters, Topics, and Marks weightage. Our AI parser extracts structured trees in bilingual Hindi & English format.
             </p>
           </div>
+        </div>
+      </div>
+
+      {/* Quick Load Real Syllabi Presets */}
+      <div className="bg-emerald-50/80 border border-emerald-200/90 rounded-2xl p-3 sm:p-3.5 space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-900">
+            <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Load Ready-to-Test Sample Syllabus (1-Click Presets):</span>
+          </div>
+          {activeSampleName && (
+            <span className="text-[11px] font-semibold text-emerald-700 bg-white px-2 py-0.5 rounded-md border border-emerald-200">
+              Loaded: {activeSampleName}
+            </span>
+          )}
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <button
+            type="button"
+            onClick={() => handleLoadSample(SAMPLE_CLASS10_SCIENCE_SYLLABUS_TEXT, 'Class 10 Science')}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white hover:bg-emerald-100/60 border border-emerald-200 text-xs font-bold text-emerald-900 transition-all shadow-2xs hover:shadow-xs text-left cursor-pointer"
+          >
+            <Microscope className="w-3.5 h-3.5 text-cyan-600 shrink-0" />
+            <div className="truncate">
+              <span className="block font-black text-slate-900 truncate">Class 10 Science</span>
+              <span className="text-[10px] text-slate-500 font-normal">13 Chaps • 80 M</span>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleLoadSample(SAMPLE_CLASS9_SCIENCE_SYLLABUS_TEXT, 'Class 9 Science')}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white hover:bg-emerald-100/60 border border-emerald-200 text-xs font-bold text-emerald-900 transition-all shadow-2xs hover:shadow-xs text-left cursor-pointer"
+          >
+            <FlaskConical className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+            <div className="truncate">
+              <span className="block font-black text-slate-900 truncate">Class 9 Science</span>
+              <span className="text-[10px] text-slate-500 font-normal">11 Chaps • 80 M</span>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleLoadSample(SAMPLE_BIOLOGY_SYLLABUS_TEXT, 'Class 12 Biology')}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white hover:bg-emerald-100/60 border border-emerald-200 text-xs font-bold text-emerald-900 transition-all shadow-2xs hover:shadow-xs text-left cursor-pointer"
+          >
+            <Dna className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <div className="truncate">
+              <span className="block font-black text-slate-900 truncate">Class 12 Biology</span>
+              <span className="text-[10px] text-slate-500 font-normal">16 Chaps • 70 M</span>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleLoadSample(SAMPLE_PHYSICS_SYLLABUS_TEXT, 'Class 12 Physics')}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white hover:bg-emerald-100/60 border border-emerald-200 text-xs font-bold text-emerald-900 transition-all shadow-2xs hover:shadow-xs text-left cursor-pointer"
+          >
+            <Atom className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+            <div className="truncate">
+              <span className="block font-black text-slate-900 truncate">Class 12 Physics</span>
+              <span className="text-[10px] text-slate-500 font-normal">14 Chaps • 70 M</span>
+            </div>
+          </button>
         </div>
       </div>
 
@@ -89,40 +170,46 @@ export const PasteAndParseSyllabusView: React.FC<PasteAndParseSyllabusViewProps>
         <textarea
           value={rawSyllabusText}
           onChange={(e) => setRawSyllabusText(e.target.value)}
-          placeholder={`Paste Syllabus text here, e.g.:
+          placeholder={`Paste Syllabus text here in this format:
 
-UNIT 1: REPRODUCTION (जनन) [14 Marks]
-Chapter 1: Reproduction in Organisms (जीवों में जनन) [4 Marks]
-- Asexual reproduction: Binary fission, budding, vegetative propagation.
-- Sexual reproduction: Gametogenesis, Fertilization, Embryogenesis.
+UNIT I: CHEMICAL SUBSTANCES (रासायनिक पदार्थ) [25 Marks]
+Chapter 1: Chemical Reactions and Equations (रासायनिक अभिक्रियाएं एवं समीकरण) [6 Marks]
+- Types of chemical reactions: Combination, decomposition, displacement.
+- Oxidation and reduction in daily life.
+- Corrosion and rancidity.
 
-Chapter 2: Sexual Reproduction in Flowering Plants [5 Marks]
-- Flower structure and development of male and female gametophytes.
-- Pollination: Types, agencies and examples.`}
+Chapter 2: Acids, Bases and Salts (अम्ल, क्षारक एवं लवण) [6 Marks]
+- Concept of pH scale and everyday importance.
+- Bleaching powder, Baking soda, Plaster of Paris.`}
           className="w-full h-80 p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-mono text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all leading-relaxed shadow-inner"
         />
 
         {/* Formatting Quick Guide */}
-        <div className="rounded-2xl bg-slate-50 border border-slate-200/80 p-3 text-xs space-y-2">
-          <div className="flex items-center gap-1.5 font-bold text-slate-700">
-            <Info className="w-3.5 h-3.5 text-emerald-600" />
-            Smart Parser Formatting Guidelines:
+        <div className="rounded-2xl bg-slate-50 border border-slate-200/80 p-3.5 text-xs space-y-2.5">
+          <div className="flex items-center gap-1.5 font-bold text-slate-800">
+            <Info className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>Syllabus Format Guide (पेस्ट करने के नियम व फॉर्मेट):</span>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] text-slate-600">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 text-[11px] text-slate-600">
             <div className="p-2.5 rounded-xl bg-white border border-slate-200 shadow-2xs">
-              <strong className="text-emerald-700 block mb-0.5">1. Units & Marks</strong>
-              <code className="text-[10px] bg-slate-100 px-1 py-0.5 rounded">UNIT 1: ELECTROSTATICS [8 Marks]</code>
-              <p className="text-slate-500 text-[10px] mt-1">Auto-extracts unit number and unit weightage.</p>
+              <strong className="text-emerald-700 block mb-0.5 font-bold">1. Unit / इकाई</strong>
+              <code className="text-[10px] bg-slate-100 px-1 py-0.5 rounded block text-slate-800 font-mono">UNIT 1: NAME [Marks]</code>
+              <p className="text-slate-500 text-[10px] mt-1 leading-snug">उदाहरण: <code className="text-slate-700 font-mono">UNIT I: CHEMICALS [25 Marks]</code> या <code className="text-slate-700 font-mono">इकाई 1: भौतिक विज्ञान [30 अंक]</code></p>
             </div>
             <div className="p-2.5 rounded-xl bg-white border border-slate-200 shadow-2xs">
-              <strong className="text-emerald-700 block mb-0.5">2. Chapters & Bilingual</strong>
-              <code className="text-[10px] bg-slate-100 px-1 py-0.5 rounded">Chapter 1: Electric Charges (वैद्युत आवेश)</code>
-              <p className="text-slate-500 text-[10px] mt-1">Separates English and Hindi titles automatically.</p>
+              <strong className="text-emerald-700 block mb-0.5 font-bold">2. Chapter / अध्याय</strong>
+              <code className="text-[10px] bg-slate-100 px-1 py-0.5 rounded block text-slate-800 font-mono">Chapter 1: Title (हिंदी) [Marks]</code>
+              <p className="text-slate-500 text-[10px] mt-1 leading-snug">उदाहरण: <code className="text-slate-700 font-mono">Chapter 1: Life Processes (जैव प्रक्रम) [10 Marks]</code></p>
             </div>
             <div className="p-2.5 rounded-xl bg-white border border-slate-200 shadow-2xs">
-              <strong className="text-emerald-700 block mb-0.5">3. Topics & Subtopics</strong>
-              <code className="text-[10px] bg-slate-100 px-1 py-0.5 rounded">- Coulomb's law: statement; formula</code>
-              <p className="text-slate-500 text-[10px] mt-1">Lines starting with "-" or "•" become structured topics.</p>
+              <strong className="text-emerald-700 block mb-0.5 font-bold">3. Topics / टॉपिक्स</strong>
+              <code className="text-[10px] bg-slate-100 px-1 py-0.5 rounded block text-slate-800 font-mono">- Topic 1 / * Topic 2</code>
+              <p className="text-slate-500 text-[10px] mt-1 leading-snug">बुलेट पॉइंट (<code className="text-slate-700 font-mono">- </code> या <code className="text-slate-700 font-mono">* </code> या <code className="text-slate-700 font-mono">1. </code>) से शुरू करें।</p>
+            </div>
+            <div className="p-2.5 rounded-xl bg-white border border-slate-200 shadow-2xs">
+              <strong className="text-emerald-700 block mb-0.5 font-bold">4. Auto Detection</strong>
+              <code className="text-[10px] bg-slate-100 px-1 py-0.5 rounded block text-slate-800 font-mono"># CLASS 10 SCIENCE</code>
+              <p className="text-slate-500 text-[10px] mt-1 leading-snug">ऊपर विषय/कक्षा लिखने पर सिस्टम ऑटो-डिटेक्ट कर लेता है।</p>
             </div>
           </div>
         </div>

@@ -120,6 +120,15 @@ export function detectSubjectFromText(text: string): { id: string; name: string 
   if (targetToMatch.includes('कंप्यूटर') || targetToMatch.includes('computer science')) {
     return { id: 'cs', name: 'Computer Science (कंप्यूटर विज्ञान)' };
   }
+  if (targetToMatch.includes('सामाजिक विज्ञान') || targetToMatch.includes('social science') || targetToMatch.includes('sst')) {
+    return { id: 'social-science-10', name: 'Social Science (सामाजिक विज्ञान)' };
+  }
+  if (targetToMatch.includes('संस्कृत') || targetToMatch.includes('sanskrit')) {
+    return { id: 'sanskrit', name: 'Sanskrit (संस्कृत)' };
+  }
+  if (targetToMatch.includes('सामान्य विज्ञान') || targetToMatch.includes('general science') || targetToMatch.includes('science') || targetToMatch.includes('विज्ञान')) {
+    return { id: 'science-10', name: 'Science (सामान्य विज्ञान - Class 9/10)' };
+  }
 
   return null;
 }
