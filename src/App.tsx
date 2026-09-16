@@ -24,7 +24,8 @@ import {
   Settings,
   ShieldCheck,
   Menu,
-  LayoutDashboard
+  LayoutDashboard,
+  Sigma
 } from 'lucide-react';
 import { ExamMetaHeader } from './components/converter/ExamMetaHeader';
 import { PasteAndParseView } from './components/converter/PasteAndParseView';
@@ -38,6 +39,9 @@ import { INITIAL_PAPERS } from './data/initialData';
 import { QuestionPaper } from './types';
 import { ALL_SUBJECTS, getSubjectDisplayName } from './data/subjects';
 import { pushFileToGitHub } from './utils/githubService';
+
+// Dedicated Maths Engine Module
+import { MathsModuleView } from './components/math/MathsModuleView';
 
 // Syllabus Engine Components & Parser
 import { SyllabusMetaHeader } from './components/syllabus/SyllabusMetaHeader';
@@ -66,8 +70,8 @@ import { OfflineIndicator } from './components/pwa/OfflineIndicator';
 
 
 export default function App() {
-  // Top Engine Switcher: 'dashboard' vs 'questions' vs 'syllabus' vs 'notes'
-  type EngineType = 'dashboard' | 'questions' | 'syllabus' | 'notes';
+  // Top Engine Switcher: 'dashboard' vs 'questions' vs 'math' vs 'syllabus' vs 'notes'
+  type EngineType = 'dashboard' | 'questions' | 'math' | 'syllabus' | 'notes';
   const [activeEngine, setActiveEngine] = useState<EngineType>('dashboard');
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
 
@@ -774,6 +778,19 @@ export default function App() {
             </button>
 
             <button
+              onClick={() => setActiveEngine('math')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                activeEngine === 'math'
+                  ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-sm font-black'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Sigma className="w-3.5 h-3.5 text-amber-500 group-hover:text-amber-600" />
+              <span>Maths Lab</span>
+              <span className="text-[9px] font-black px-1.5 py-0.2 rounded-md bg-amber-100 text-amber-800">NEW</span>
+            </button>
+
+            <button
               onClick={() => setActiveEngine('syllabus')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                 activeEngine === 'syllabus'
@@ -817,7 +834,7 @@ export default function App() {
         </div>
 
         {/* Workflow Steps Sub-Navbar */}
-        {activeEngine !== 'dashboard' && (
+        {activeEngine !== 'dashboard' && activeEngine !== 'math' && (
           <div className="bg-white/60 backdrop-blur-md border-t border-slate-200/60 overflow-x-auto no-scrollbar">
             <div className="max-w-6xl mx-auto px-3 sm:px-6">
               {activeEngine === 'questions' ? (
@@ -1066,6 +1083,16 @@ export default function App() {
               />
             )}
           </>
+        ) : activeEngine === 'math' ? (
+          /* =======================================================
+             DEDICATED MATHEMATICS ENGINE WORKFLOW (Formula & Step-Safe)
+             ======================================================= */
+          <MathsModuleView
+            githubToken={githubToken}
+            repoOwner={repoOwner}
+            repoName={repoName}
+            onOpenSettings={() => setIsSettingsOpen(true)}
+          />
         ) : activeEngine === 'syllabus' ? (
           /* =======================================================
              SYLLABUS UPLOAD & GITHUB ENGINE WORKFLOW

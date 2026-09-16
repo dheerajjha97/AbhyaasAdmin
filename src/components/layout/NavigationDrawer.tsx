@@ -14,7 +14,8 @@ import {
   CheckCircle2,
   FolderGit2,
   HelpCircle,
-  ExternalLink
+  ExternalLink,
+  Sigma
 } from 'lucide-react';
 import { ALL_SUBJECTS, getSubjectsGroupedByStream } from '../../data/subjects';
 import { PWAInstallButton } from '../pwa/PWAInstallButton';
@@ -22,8 +23,8 @@ import { PWAInstallButton } from '../pwa/PWAInstallButton';
 interface NavigationDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-  activeEngine: 'dashboard' | 'questions' | 'syllabus' | 'notes';
-  setActiveEngine: (engine: 'dashboard' | 'questions' | 'syllabus' | 'notes') => void;
+  activeEngine: 'dashboard' | 'questions' | 'math' | 'syllabus' | 'notes';
+  setActiveEngine: (engine: 'dashboard' | 'questions' | 'math' | 'syllabus' | 'notes') => void;
   onOpenSettings: () => void;
   githubToken: string;
   repoOwner: string;
@@ -48,7 +49,7 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
 
   const grouped = getSubjectsGroupedByStream();
 
-  const handleSelectEngine = (engine: 'dashboard' | 'questions' | 'syllabus' | 'notes') => {
+  const handleSelectEngine = (engine: 'dashboard' | 'questions' | 'math' | 'syllabus' | 'notes') => {
     setActiveEngine(engine);
     onClose();
   };
@@ -141,7 +142,31 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
                 <ArrowRight className={`w-4 h-4 ${activeEngine === 'questions' ? 'text-white' : 'text-slate-400'}`} />
               </button>
 
-              {/* 3. Syllabus Builder */}
+              {/* 3. Maths Dedicated Engine */}
+              <button
+                onClick={() => handleSelectEngine('math')}
+                className={`w-full p-3 rounded-2xl flex items-center justify-between transition-all cursor-pointer ${
+                  activeEngine === 'math'
+                    ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white font-black shadow-md shadow-orange-500/20'
+                    : 'bg-slate-50/80 hover:bg-slate-100 text-slate-700 font-bold border border-slate-200/60'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Sigma className={`w-5 h-5 ${activeEngine === 'math' ? 'text-amber-200' : 'text-amber-600'}`} />
+                  <div className="text-left">
+                    <div className="text-xs flex items-center gap-1.5">
+                      <span>गणित विशेष इंजन (Maths Lab)</span>
+                      <span className="text-[9px] font-black px-1.5 py-0.2 rounded-md bg-amber-200 text-amber-900">NEW</span>
+                    </div>
+                    <div className={`text-[10px] font-normal ${activeEngine === 'math' ? 'text-amber-100' : 'text-slate-500'}`}>
+                      Formula, LaTeX & Proof Safe
+                    </div>
+                  </div>
+                </div>
+                <ArrowRight className={`w-4 h-4 ${activeEngine === 'math' ? 'text-white' : 'text-slate-400'}`} />
+              </button>
+
+              {/* 4. Syllabus Builder */}
               <button
                 onClick={() => handleSelectEngine('syllabus')}
                 className={`w-full p-3 rounded-2xl flex items-center justify-between transition-all cursor-pointer ${

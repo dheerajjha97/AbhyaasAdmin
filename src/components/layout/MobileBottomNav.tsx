@@ -10,8 +10,8 @@ import {
 } from 'lucide-react';
 
 interface MobileBottomNavProps {
-  activeEngine: 'dashboard' | 'questions' | 'syllabus' | 'notes';
-  setActiveEngine: (engine: 'dashboard' | 'questions' | 'syllabus' | 'notes') => void;
+  activeEngine: 'dashboard' | 'questions' | 'math' | 'syllabus' | 'notes';
+  setActiveEngine: (engine: 'dashboard' | 'questions' | 'math' | 'syllabus' | 'notes') => void;
   onOpenDrawer: () => void;
   onOpenSettings: () => void;
   onJumpToPush: () => void;

@@ -114,16 +114,6 @@ export const ALL_SUBJECTS: SubjectOption[] = [
     color: 'teal'
   },
   {
-    id: 'social-science-10',
-    name: 'Social Science (सामाजिक विज्ञान - Class 9/10)',
-    hindiName: 'सामाजिक विज्ञान',
-    code: 'SST',
-    stream: 'arts',
-    categoryLabel: 'Arts & Humanities (कला संकाय)',
-    iconName: 'Globe',
-    color: 'amber'
-  },
-  {
     id: 'evs',
     name: 'Environmental Science (पर्यावरण विज्ञान)',
     hindiName: 'पर्यावरण विज्ञान',

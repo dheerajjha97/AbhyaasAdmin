@@ -25,7 +25,7 @@ interface FolderPathSelectorProps {
   repoOwner?: string;
   repoName?: string;
   branch?: string;
-  type?: 'paper' | 'syllabus' | 'notes' | 'general';
+  type?: 'paper' | 'syllabus' | 'notes' | 'math' | 'general';
   label?: string;
   className?: string;
 }
@@ -64,6 +64,19 @@ export const FolderPathSelector: React.FC<FolderPathSelectorProps> = ({
 
   // Define Preset Folders according to type
   const getPresetFolders = () => {
+    if (type === 'math') {
+      return [
+        'Papers/X/Mathematics',
+        'Papers/XII/Mathematics',
+        'Papers/X/Math',
+        'Papers/XII/Math',
+        'data/papers',
+        'papers/math',
+        'data/math',
+        'papers',
+        '', // Root
+      ];
+    }
     if (type === 'syllabus') {
       return [
         'Syllabus/XII',
@@ -101,6 +114,7 @@ export const FolderPathSelector: React.FC<FolderPathSelectorProps> = ({
       'Papers/XII/Mathematics',
       'Papers/XII/Hindi',
       'Papers/XII/English',
+      'Papers/X/Mathematics',
       'Papers/X/Science',
       'Papers/X/Social Science',
       'data/papers',
